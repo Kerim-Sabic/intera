@@ -32,7 +32,8 @@ beforeEach(async()=>{
   provider=new FakeWhop();now=new Date('2026-09-10T12:00:00Z');service=new BillingService(db,provider,config,()=>now);
   await service.initialize();
   userId=randomUUID();await db.query('insert into auth.users values($1)',[userId]);accountId=(await service.account(userId)).id;
-},20_000);
+// Allow cold PGlite WASM startup on the shared Intel Mac runner.
+},60_000);
 afterEach(async()=>{await pg.close();});
 async function purchase() {
   const intent=randomUUID();await service.checkout(accountId,'essential',intent);

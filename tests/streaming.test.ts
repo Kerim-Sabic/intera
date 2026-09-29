@@ -16,7 +16,9 @@ beforeEach(async()=>{
  const config:StreamConfig={enabled:true,region:'us',projectRef:'test-project',key:'fixture-only',accounts:new Set([account]),maxSeconds:1800};
  const provider:SpeechProvider={check:async()=>{},logs:async()=>({usage_logs:[],next_page_cursor:null}),issue:async()=>{calls++;if(fail)throw new Error('timeout');return {api_key:'fixture-temporary',expires_at:new Date(now.getTime()+30000).toISOString()};}};
  service=new StreamingService(db,provider,config,()=>now);await service.initialize();
-},20000);
+// Cold PGlite WASM initialization exceeded 20s on the shared Intel Mac runner.
+// Only fixture startup gets this budget; assertion timeouts remain unchanged.
+},60000);
 afterEach(async()=>pg.close());
 const record=(lease:string,ms=60000):UsageRecord=>({uuid:randomUUID(),client_reference_id:lease,request_scope:'api',model:'stt-rt-v5',start_time:'2026-09-29T12:00:01Z',end_time:'2026-09-29T12:01:01Z',input_audio_duration_ms:ms,cost_usd:'0.0001234567'});
 it('reserves before issuance and repeated admission never mints another key',async()=>{const id=randomUUID(),first=await service.admit(account,id);expect((await service.status(account)).availableMs).toBe(0);expect(await service.admit(account,id)).toMatchObject({leaseId:first.leaseId,retryable:false});expect(calls).toBe(1);await expect(service.admit(account,randomUUID())).rejects.toThrow('finalizing');});

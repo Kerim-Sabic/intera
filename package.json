@@ -22,6 +22,7 @@
     "diagnostics:capture": "npm run build && tsx scripts/capture-diagnostic.ts",
     "server": "tsx server/main.ts",
     "server:check": "tsx scripts/whop-check.ts",
+    "server:catalog": "tsx scripts/whop-catalog-check.ts",
     "brand:export": "node scripts/brand-export.mjs",
     "managed:check": "tsx scripts/managed-check.ts"
   },

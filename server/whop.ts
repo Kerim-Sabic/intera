@@ -27,6 +27,22 @@ export const membershipSchema = z.object({
   renewal_period_start: date.nullable(), renewal_period_end: date.nullable(),
 });
 export type Membership = z.infer<typeof membershipSchema>;
+export function validateCatalogVariant(input: unknown, offer: Offer, planId: string, companyId: string): void {
+  const product=offers[offer];
+  const variant=z.object({id:identifier,account:reference,currency:z.literal('usd'),
+    plan_type:z.enum(['renewal','one_time']),initial_price:money,renewal_price:money,
+    billing_period:z.number().nullable(),trial_period_days:z.number().nullable(),
+    collect_tax:z.boolean(),tax_type:z.string(),adaptive_pricing_enabled:z.boolean(),
+    split_pay_required_payments:z.number().nullable()}).parse(input);
+  if(variant.id!==planId || variant.account.id!==companyId ||
+    variant.plan_type!==(product.recurring?'renewal':'one_time') ||
+    variant.initial_price!==(product.recurring?0:product.cents) ||
+    variant.renewal_price!==(product.recurring?product.cents:0) ||
+    (product.recurring && variant.billing_period!==30) || variant.trial_period_days ||
+    variant.split_pay_required_payments || !variant.collect_tax || variant.tax_type!=='exclusive' ||
+    variant.adaptive_pricing_enabled)
+    throw new Error('Whop plan does not match the approved Intera catalog and tax settings.');
+}
 export interface Provider {
   checkout(offer: Offer, accountId: string, intentId: string): Promise<{ id: string; url: string }>;
   payment(id: string): Promise<Payment>;
@@ -51,21 +67,9 @@ export class WhopProvider implements Provider {
     return response.json(); // Never log the response: provider objects can include PII.
   }
   async checkout(offer: Offer, accountId: string, intentId: string) {
-    const planId = this.config.plans[offer], product = offers[offer];
-    const variant = z.object({id:identifier, account:reference, currency:z.literal('usd'),
-      plan_type:z.enum(['renewal','one_time']), initial_price:money, renewal_price:money,
-      billing_period:z.number().nullable(), trial_period_days:z.number().nullable(),
-      collect_tax:z.boolean(), tax_type:z.string(), adaptive_pricing_enabled:z.boolean(),
-      split_pay_required_payments:z.number().nullable(),
-    }).parse(await this.api(`/variants/${planId}`, undefined, CURRENT_VERSION));
-    if (variant.id !== planId || variant.account.id !== this.config.companyId ||
-      variant.plan_type !== (product.recurring ? 'renewal' : 'one_time') ||
-      variant.initial_price !== (product.recurring ? 0 : product.cents) ||
-      variant.renewal_price !== (product.recurring ? product.cents : 0) ||
-      (product.recurring && variant.billing_period !== 30) ||
-      variant.trial_period_days || variant.split_pay_required_payments ||
-      !variant.collect_tax || variant.tax_type !== 'exclusive' || variant.adaptive_pricing_enabled)
-      throw new Error('Whop plan does not match the approved Intera catalog and tax settings.');
+    const planId = this.config.plans[offer];
+    validateCatalogVariant(await this.api(`/variants/${planId}`, undefined, CURRENT_VERSION),
+      offer,planId,this.config.companyId);
     const result = z.object({id:identifier, purchase_url:z.url()}).parse(await this.api('/checkout_configurations', {
       plan_id: planId, mode: 'payment', redirect_url: this.config.returnUrl,
       // Explicit allowlist. No email, transcript, diagnosis, context, or arbitrary client metadata.
