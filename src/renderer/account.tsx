@@ -1,7 +1,9 @@
 import React,{useEffect,useState} from 'react';
 import type {BillingCommand,BillingView} from '../shared/billing';
+import type {State,Command} from '../shared/protocol';
+import {DirectSoniox} from './direct-soniox';
 
-export function AccountPanel(){
+export function AccountPanel({s,sendCommand}:{s?:State;sendCommand?:(c:Command)=>Promise<{ok:boolean;message?:string}>}={}){
   const [view,setView]=useState<BillingView|null>(null),[email,setEmail]=useState(''),[code,setCode]=useState(''),
     [sent,setSent]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   async function send(command:BillingCommand){
@@ -16,6 +18,7 @@ export function AccountPanel(){
   return <section className="account-panel" aria-label="Account and billing">
     <h2>Account & billing</h2>
     <p>English ↔ Bosnian, with the same interpretation settings on every plan.</p>
+    {s&&sendCommand&&<><DirectSoniox s={s} send={sendCommand}/><hr/><h3>Intera account & subscriptions</h3><p>Subscriptions and included time remain separate from direct Soniox payment. Switching modes does not cancel an existing subscription.</p></>}
     {message&&<p role="status" className="account-message">{message}</p>}
     {!view?<div><p>{busy?'Loading account…':'Account unavailable.'}</p><button disabled={busy} onClick={()=>void send({type:'status'})}>Try again</button></div>:!view.configured?<>
       <p className="account-message">Paid plans are not available in this build yet.</p>
