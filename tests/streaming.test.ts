@@ -28,4 +28,18 @@ it('keeps ambiguous issuance funded and bounded',async()=>{fail=true;const id=ra
 it('does not accept another account Stop or provide its allowance',async()=>{const lease=await service.admit(account,randomUUID());await service.endIntent(randomUUID(),lease.leaseId);expect((await db.query('select end_intent_at from private.stream_leases')).rows[0].end_intent_at).toBeNull();await expect(service.admit(randomUUID(),randomUUID())).rejects.toThrow('not ready');});
 it('quarantines accelerated duration overrun without spending a new grant',async()=>{const lease=await service.admit(account,randomUUID());await service.settle(record(lease.leaseId,2000000));expect((await service.status(account)).reviewRequired).toBe(true);expect((await db.query("select sum(amount_ms)::text as ms from private.allowance_entries")).rows[0].ms).toBe('-200000');});
 it('rejects wrong model and keeps its reservation unresolved',async()=>{const lease=await service.admit(account,randomUUID());await service.settle({...record(lease.leaseId),model:'different-model'});expect(await service.status(account)).toMatchObject({reviewRequired:true,reservedMs:1800000});expect((await db.query('select * from private.provider_requests')).rows).toHaveLength(0);});
+it('quarantines completion beyond the funded connection boundary',async()=>{const lease=await service.admit(account,randomUUID());await service.settle({...record(lease.leaseId),end_time:'2026-09-29T13:00:00Z'});expect(await service.status(account)).toMatchObject({reviewRequired:true,reservedMs:1800000});expect((await db.query('select * from private.provider_requests')).rows).toHaveLength(0);});
+it('persists page cursors and deduplicates overlapping usage pages',async()=>{
+ const lease=await service.admit(account,randomUUID()),usage=record(lease.leaseId);const calls:Array<string|undefined>=[];
+ service.provider.logs=async(_start,_end,cursor)=>{calls.push(cursor);return {usage_logs:[usage],next_page_cursor:cursor?null:'page-two'};};
+ await service.reconcile();expect((await db.query('select cursor from private.usage_cursors')).rows[0].cursor).toBe('page-two');
+ await service.reconcile();expect(calls).toEqual([undefined,'page-two']);expect((await db.query('select * from private.provider_requests')).rows).toHaveLength(1);
+ expect((await db.query("select * from private.allowance_entries where kind='usage'")).rows).toHaveLength(1);
+ expect((await db.query('select cursor from private.usage_cursors')).rows[0].cursor).toBeNull();
+});
+it('retains reservations and blocks new admission if pagination stalls',async()=>{
+ await service.admit(account,randomUUID());service.provider.logs=async()=>({usage_logs:[],next_page_cursor:'same-page'});
+ await service.reconcile();await expect(service.reconcile()).rejects.toThrow('did not advance');
+ expect(await service.status(account)).toMatchObject({reviewRequired:true,reservedMs:1800000});
+});
 it('prevents API roles from reading private leases',async()=>{await db.query('set role authenticated');await expect(db.query('select * from private.stream_leases')).rejects.toThrow();});

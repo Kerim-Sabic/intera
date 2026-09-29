@@ -70,7 +70,7 @@ export class StreamingService{
   if((await sql.query('select id from private.provider_requests where id=$1',[record.uuid])).rows.length)return;
   const lease=(await sql.query('select * from private.stream_leases where id::text=$1 for update',[record.client_reference_id])).rows[0];
   if(!lease){await this.alert(sql,`unknown:${record.uuid}`,null,'Provider request has no known funded lease.');return;}
-  if(lease.project_ref!==this.config.projectRef||lease.region!==this.config.region||record.model!=='stt-rt-v5'||new Date(record.start_time)<new Date(lease.created_at)||new Date(record.end_time)<new Date(record.start_time)||new Date(record.start_time)>new Date(lease.admission_expires_at)){
+  if(lease.project_ref!==this.config.projectRef||lease.region!==this.config.region||record.model!=='stt-rt-v5'||new Date(record.start_time)<new Date(lease.created_at)||new Date(record.end_time)<new Date(record.start_time)||new Date(record.start_time)>new Date(lease.admission_expires_at)||new Date(record.end_time)>new Date(lease.conservative_end_at)){
    await this.alert(sql,`invalid:${record.uuid}`,lease.account_id,'Provider request identity, model or timing mismatch.');await sql.query("update private.stream_leases set status='review' where id=$1",[lease.id]);return;
   }
   if((await sql.query('select id from private.provider_requests where lease_id=$1',[lease.id])).rows.length){await this.alert(sql,`replay:${record.uuid}`,lease.account_id,'Multiple provider requests for one single-use lease.');return;}
@@ -90,6 +90,10 @@ export class StreamingService{
   const start=new Date(row.window_start).toISOString(),end=new Date(row.window_end).toISOString();
   const page=await this.provider.logs(start,end,row.cursor??undefined);
   for(const item of page.usage_logs)await this.settle(item);
+  if(page.next_page_cursor && page.next_page_cursor===row.cursor){
+   await this.alert(this.db,'usage-pagination-stalled',null,'Provider repeated a usage cursor; reconciliation requires review.');
+   throw new Error('Provider usage pagination did not advance.');
+  }
   if(page.next_page_cursor)await this.db.query('update private.usage_cursors set cursor=$1,checked_at=$2 where id=1 and window_start=$3 and window_end=$4 and cursor is not distinct from $5',[page.next_page_cursor,now.toISOString(),start,end,row.cursor]);
   else{
    const oldest=(await this.db.query("select min(created_at) as oldest from private.stream_leases where status<>'settled'")).rows[0].oldest;

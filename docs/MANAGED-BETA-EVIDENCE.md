@@ -24,7 +24,7 @@ Local Windows loopback diagnostic captured synthetic 440 Hz playback: stereo PCM
 
 ## VERIFIED SANDBOX
 
-Whop sandbox login, business/product configuration and artwork persistence observed in the dashboard. No verified sandbox payment, signed webhook fulfillment or renewal/refund/transfer outcome yet. Local fixtures are recorded separately below.
+Whop sandbox login, business/product configuration and artwork persistence observed in the dashboard. The owner saved the scoped API key through the masked local helper. Authenticated API reads confirmed company ownership, plan IDs, price/period/initial-fee settings and tax-exclusive collection. Shared catalog validation blocks adaptive pricing, which the API reports enabled. No verified sandbox payment, signed webhook fulfillment or renewal/refund/transfer outcome yet. Local fixtures are recorded separately below.
 
 ## Local validation
 
@@ -40,5 +40,11 @@ Visual evidence is actual Electron output with labeled synthetic conversation, n
 - Approved hosted backend destination; a temporary local HTTPS tunnel is authorized for testing but has not been presented as production infrastructure.
 - Physical supported Mac live capture; Windows meeting/headset/output-loss/sleep/lock scenarios; long real session and measured latency, memory and usage accuracy. No fabricated timing percentiles.
 - New Mac package build, signing/notarization, merchant approval, Bosnia and Herzegovina payout onboarding, owner tax/legal selections, support/policy/download details and public distribution readiness.
+
+## Subsequent build and review checkpoint
+
+Draft PR #2: https://github.com/Kerim-Sabic/intera/pull/2, stacked on PR #1's Whop branch. A clean-tree local Windows installer and ZIP were rebuilt at `d7bf5abc1984836b45004f22e8bc13c440a985b7`, version 0.2.0-beta.1; Authenticode reports NotSigned. ASAR inspection found no server directory, Supabase migrations or environment files. SHA256 inventory accompanies the copied artifacts. These supersede the dirty-tree package mentioned above.
+
+CI at this checkpoint passed Windows and Apple Silicon, including packaging. Intel Mac failed only the first cold PGlite initialization hooks (20-second budget), before packaging. The follow-up changes only those two fixture initialization budgets to 60 seconds; test assertions and checks remain enabled. CI rerun is required before declaring Intel Mac packaging successful. This CI evidence is never physical Mac capture evidence.
 
 Remaining owner steps are credential/security handoffs and legal/business configuration. Continue independent engineering and testing while those are pending. Do not fill release-evidence settings with placeholders, treat a success redirect as payment, or open public admission based on the existence of these documents.
