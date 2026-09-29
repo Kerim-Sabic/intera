@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+test-results/
+playwright-report/
+.env
+*.log
+*.pcm
+*.wav
+*.pfx
+*.p12

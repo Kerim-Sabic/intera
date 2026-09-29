@@ -1,0 +1,21 @@
+{
+  "packaged": true,
+  "os": "win32",
+  "arch": "x64",
+  "runtime": "44.4.5",
+  "data": "Synthetic 440 Hz playback, 4 seconds. Local only; no provider request.",
+  "packets": 79,
+  "maxLevel": 0.0212570926877292,
+  "health": "Samples arriving — silence",
+  "status": "local-test Local playback test — nothing is uploaded",
+  "audio": {
+    "sampleRate": 48000,
+    "channels": 2
+  },
+  "packetsWhileMinimized": 55,
+  "stoppedPacketsStable": true,
+  "providerUploaded": false,
+  "meetingApps": "NOT RUN",
+  "headphones": "NOT VERIFIED",
+  "result": "PASS local loopback sample delivery"
+}

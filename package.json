@@ -1,0 +1,59 @@
+{
+  "name": "intera",
+  "productName": "Intera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "User-controlled English / Bosnian desktop interpreter copilot",
+  "author": "Intera contributors",
+  "license": "UNLICENSED",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "dev": "npm run build && electron .",
+    "demo": "npm run build && electron . --demo",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:ui": "npm run build && playwright test",
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make",
+    "compare": "tsx scripts/compare.ts",
+    "smoke": "tsx scripts/compare.ts --smoke",
+    "diagnostics:capture": "npm run build && tsx scripts/capture-diagnostic.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.23",
+    "electron-squirrel-startup": "1.0.1",
+    "lucide-react": "1.48.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ws": "8.22.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-dmg": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/maker-zip": "7.11.2",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/ws": "8.18.2",
+    "electron": "44.4.5",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  },
+  "config": {
+    "forge": "./forge.config.cjs"
+  },
+  "overrides": {
+    "tar": "7.5.22",
+    "tmp": "0.2.7"
+  }
+}

@@ -1,0 +1,35 @@
+name: Desktop checks and unsigned artifacts
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run make -- --arch=${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Intera-unsigned-${{ matrix.os }}-${{ matrix.arch }}
+          path: out/make/**
+          if-no-files-found: error
+  # Signing/notarization are configured in forge.config.cjs, enabled only with
+  # externally supplied credentials. CI builds do not assert capture verification.
