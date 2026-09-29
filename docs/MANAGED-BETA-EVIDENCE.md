@@ -12,7 +12,9 @@ Long-history rendering uses CSS content visibility while retaining DOM for selec
 
 ## CONFIGURED
 
-Supabase staging project `pggkdfbbnmkbxrxodghu` (intera-staging), Frankfurt, in owner-selected free organization `nzthgftzybjtdqqdoaez`. Data API disabled. Both repository SQL migrations applied through the hosted SQL editor; CLI migration history has not been repaired/recorded. Private database connection uses a protected ignored local environment file, session pooler and certificate-verified TLS with the official Supabase root certificate. Current staging connection uses the privileged database owner; a least-privilege runtime role is still required before external exposure.
+Supabase staging project `pggkdfbbnmkbxrxodghu` (intera-staging), Frankfurt, in owner-selected free organization `nzthgftzybjtdqqdoaez`. Data API disabled. Four migrations applied; CLI migration history has not been repaired/recorded. Private database connection uses a protected ignored local environment file, session pooler and certificate-verified TLS. Runtime now uses `intera_server`, without superuser, RLS bypass, role creation, database creation or direct auth-table access. A private Boolean session lookup checks both session and user identity. Owner connection is isolated in a protected ignored administration file.
+
+Soniox organization Intera (`56c7134d-0f13-40bb-9f8a-c8cc84cb27f8`), project Intera Staging (`9cc61425-8b64-49ad-8556-cb8f43ed2cb0`), United States region. Scoped server key saved privately. Project monthly spending cap $0, notification trigger $0, real-time concurrency 1; observed organization balance $0 and autopay off. Owner explicitly forbids purchases. Provider warns that limit enforcement can lag, so this is not claimed as strict per-key cost enforcement. Internal and public managed admission remain disabled.
 
 Whop production and sandbox are separate. Two hidden sandbox products, three recurring prices and one extra-time price saved, with original Intera artwork. Exact resource inventory and unresolved version/tax/webhook steps: WHOP-SETUP-INVENTORY.md. No production offers configured.
 
@@ -24,7 +26,7 @@ Local Windows loopback diagnostic captured synthetic 440 Hz playback: stereo PCM
 
 ## VERIFIED SANDBOX
 
-Whop sandbox login, business/product configuration and artwork persistence observed in the dashboard. The owner saved the scoped API key through the masked local helper. Authenticated API reads confirmed company ownership, plan IDs, price/period/initial-fee settings and tax-exclusive collection. Shared catalog validation blocks adaptive pricing, which the API reports enabled. No verified sandbox payment, signed webhook fulfillment or renewal/refund/transfer outcome yet. Local fixtures are recorded separately below.
+Whop sandbox login, business/product configuration and artwork persistence observed in the dashboard. The owner saved the scoped API key through the masked local helper. Authenticated API reads confirmed company ownership, plan IDs, price/period/initial-fee settings and tax-exclusive collection. Adaptive pricing was corrected on all four sandbox plans; all four now pass the shared checkout catalog validator. No verified sandbox payment, signed webhook fulfillment or renewal/refund/transfer outcome yet. Local fixtures are recorded separately below.
 
 ## Local validation
 
@@ -35,16 +37,20 @@ Visual evidence is actual Electron output with labeled synthetic conversation, n
 ## NOT RUN / BLOCKED
 
 - Hosted email-code sign-in and restart persistence; two real accounts' authorization isolation. Default Supabase email templates/delivery remain unconfigured for the intended code flow; no custom SMTP sender supplied.
-- Real Soniox admission, regional dedicated-project safeguards, accelerated input/configuration enforcement, actual input-audio/channel semantics and provider settlement. Server Soniox key/project setup still needed; internal allowlist remains gated.
-- Whop canonical sandbox checkout and complete decline, renewal recovery, extras, cancellation, refunds and transfer matrix. Scoped key, plan IDs, tax settings and reachable signed webhook still needed.
+- Real Soniox admission, accelerated input/configuration enforcement, actual input-audio/channel semantics and provider settlement. Key/project configured and read-only model/usage-log API requests returned HTTP 200. Billable tests are blocked by zero funding and the owner's no-purchase instruction; internal allowlist remains gated.
+- Whop canonical sandbox checkout and complete decline, renewal recovery, extras, cancellation, refunds and transfer matrix. Scoped key, plan IDs and tax-exclusive fields verified; merchant tax arrangement and reachable signed webhook remain pending.
 - Approved hosted backend destination; a temporary local HTTPS tunnel is authorized for testing but has not been presented as production infrastructure.
 - Physical supported Mac live capture; Windows meeting/headset/output-loss/sleep/lock scenarios; long real session and measured latency, memory and usage accuracy. No fabricated timing percentiles.
-- New Mac package build, signing/notarization, merchant approval, Bosnia and Herzegovina payout onboarding, owner tax/legal selections, support/policy/download details and public distribution readiness.
+- Signing/notarization, merchant approval, Bosnia and Herzegovina payout onboarding, owner tax/legal selections, support/policy/download details and public distribution readiness. New Intel and Apple Silicon packages now built in CI; physical execution remains unverified.
 
 ## Subsequent build and review checkpoint
 
 Draft PR #2: https://github.com/Kerim-Sabic/intera/pull/2, stacked on PR #1's Whop branch. A clean-tree local Windows installer and ZIP were rebuilt at `d7bf5abc1984836b45004f22e8bc13c440a985b7`, version 0.2.0-beta.1; Authenticode reports NotSigned. ASAR inspection found no server directory, Supabase migrations or environment files. SHA256 inventory accompanies the copied artifacts. These supersede the dirty-tree package mentioned above.
 
-CI at this checkpoint passed Windows and Apple Silicon, including packaging. Intel Mac failed only the first cold PGlite initialization hooks (20-second budget), before packaging. The follow-up changes only those two fixture initialization budgets to 60 seconds; test assertions and checks remain enabled. CI rerun is required before declaring Intel Mac packaging successful. This CI evidence is never physical Mac capture evidence.
+CI run `36611044282`, source head `301ea7f69b4451e77766bf03fddb795ca7ab1454`, passed all three jobs: Windows x64, Apple Silicon and Intel Mac, including checks and packaging. The earlier cold PGlite hook timeout was corrected to 60 seconds without weakening assertions. These PR builds use GitHub's merge checkout; inspect embedded build-info for the exact packaged revision. This is never physical Mac capture evidence.
+
+Latest local validation after restricted-role implementation: `npm test` passed 75 tests in nine files; typecheck passed. Hosted role verification confirmed no privileged role flags, direct auth-table permission denied, private-table access and the private session lookup working. Read-only `scripts/staging-db-check.ts` still reports 16 RLS-protected tables and no client-role table access. These checks do not replace hosted OTP or two-account end-to-end tests.
 
 Remaining owner steps are credential/security handoffs and legal/business configuration. Continue independent engineering and testing while those are pending. Do not fill release-evidence settings with placeholders, treat a success redirect as payment, or open public admission based on the existence of these documents.
+
+Final local server smoke: protected staging configuration parsed; server started with the restricted role, GET /health returned 200 with ok=true, then server stopped. No checkout or streaming request was made. managed:check remains NOT_RUN because no eligible beta account is configured. Mac artifact digests match GitHub; both app archives embed clean PR merge SHA 7a3db7b736695a287fd78fed620a435eeeaa6716 and contain no server, Supabase or environment files.

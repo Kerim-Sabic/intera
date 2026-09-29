@@ -17,9 +17,8 @@ export function supabaseAuthenticator(db:Database,url:string,publishableKey:stri
     // getUser validates the token first. Session presence also closes the logout/deletion JWT window.
     const claims=z.object({session_id:z.uuid(),sub:z.uuid()}).parse(JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString()));
     if(claims.sub!==data.user.id)throw new Error('Invalid session.');
-    const session=await db.query(`select id from auth.sessions where id=$1 and user_id=$2
-      and (not_after is null or not_after>now())`,[claims.session_id,data.user.id]);
-    if(!session.rows.length)throw new Error('Session expired.');
+    const session=await db.query('select private.session_is_active($1,$2) as active',[claims.session_id,data.user.id]);
+    if(session.rows[0]?.active!==true)throw new Error('Session expired.');
     return data.user.id;
   };
 }

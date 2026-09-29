@@ -22,7 +22,7 @@ Provider project spending/concurrency safeguards and accelerated-input behavior 
 
 ## Run and verify
 
-Apply both migrations to the designated staging database. Use a protected ignored `server/.env.staging` file and `node --env-file=server/.env.staging --import tsx server/main.ts`. Keep production sales evidence blank. Run `npm run server:check`, `npm run managed:check`, `npm test`, `npm run test:ui` and `npm run diagnostics:capture`. A local HTTPS tunnel can expose staging only for the supervised test; stop it after testing.
+Apply all four migrations to the designated staging database, including the restricted server role. Use a protected ignored `server/.env.staging` file with the restricted runtime connection and `node --env-file=server/.env.staging --import tsx server/main.ts`. Keep the owner connection separate in a protected ignored administration file. `scripts/staging-server-role.ts` configures and verifies this separation for the designated staging project only. Keep production sales evidence blank. Run `npm run server:check`, `npm run managed:check`, `npm test`, `npm run test:ui` and `npm run diagnostics:capture`. A local HTTPS tunnel can expose staging only for the supervised test; stop it after testing.
 
 Hosted OTP, cross-account RLS/auth, real provider settlement, real sandbox checkout/webhook, physical headset/Mac behavior and a long live session require separate evidence. PGlite and synthetic screenshots do not prove those outcomes.
 
