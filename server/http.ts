@@ -1,0 +1,67 @@
+import { createServer, type IncomingMessage } from 'node:http';
+import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+import type { Database } from './db';
+import { offerSchema } from './catalog';
+import type { BillingService } from './billing';
+
+export type Authenticate = (authorization:string|undefined)=>Promise<string>;
+export function supabaseAuthenticator(db:Database,url:string,publishableKey:string):Authenticate {
+  const supabase=createClient(url,publishableKey,{auth:{persistSession:false,autoRefreshToken:false}});
+  return async authorization=>{
+    if(!authorization?.startsWith('Bearer '))throw new Error('Sign in required.');
+    const token=authorization.slice(7);
+    const {data,error}=await supabase.auth.getUser(token);
+    if(error || !data.user?.email_confirmed_at)throw new Error('Verified account required.');
+    // getUser validates the token first. Session presence also closes the logout/deletion JWT window.
+    const claims=z.object({session_id:z.uuid(),sub:z.uuid()}).parse(JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString()));
+    if(claims.sub!==data.user.id)throw new Error('Invalid session.');
+    const session=await db.query(`select id from auth.sessions where id=$1 and user_id=$2
+      and (not_after is null or not_after>now())`,[claims.session_id,data.user.id]);
+    if(!session.rows.length)throw new Error('Session expired.');
+    return data.user.id;
+  };
+}
+async function body(req:IncomingMessage,max=64_000) {
+  let size=0;const chunks:Buffer[]=[];
+  for await(const chunk of req){size+=chunk.length;if(size>max)throw new Error('Request too large.');chunks.push(chunk);}
+  return Buffer.concat(chunks).toString('utf8');
+}
+export function billingServer(service:BillingService,authenticate:Authenticate) {
+  return createServer(async(req,res)=>{
+    res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    const send=(status:number,value:unknown)=>{res.statusCode=status;res.end(JSON.stringify(value));};
+    const route=req.url?.split('?')[0];
+    try{
+      if(route==='/health' && req.method==='GET')return send(200,{ok:true});
+      if(route==='/webhooks/whop' && req.method==='POST'){
+        const raw=await body(req,1_000_000);
+        const headers=Object.fromEntries(Object.entries(req.headers).filter((entry):entry is [string,string]=>typeof entry[1]==='string'));
+        try{await service.acceptWebhook(raw,headers);}catch{return send(400,{error:'Webhook rejected.'});}
+        return send(200,{received:true});
+      }
+      let userId:string;
+      try{userId=await authenticate(req.headers.authorization);}catch{return send(401,{error:'Sign in with a verified account.'});}
+      const account=await service.account(userId);
+      if(route==='/billing' && req.method==='GET'){
+        await service.refreshAccount(account.id);return send(200,await service.status(account.id));
+      }
+      if(route==='/billing/checkout' && req.method==='POST'){
+        const input=z.object({offer:offerSchema,requestId:z.uuid()}).strict().parse(JSON.parse(await body(req)));
+        return send(200,await service.checkout(account.id,input.offer,input.requestId));
+      }
+      if(route==='/billing/portal' && req.method==='POST'){
+        const input=z.object({membershipId:z.string().regex(/^mem_[a-zA-Z0-9]+$/)}).strict().parse(JSON.parse(await body(req)));
+        return send(200,await service.portal(account.id,input.membershipId));
+      }
+      // There is deliberately no company Soniox token endpoint. Purchasing time cannot
+      // unlock an unmetered session. BYOK remains independent in the existing desktop.
+      return send(404,{error:'Not found.'});
+    }catch(error){
+      const invalid=error instanceof z.ZodError || error instanceof SyntaxError;
+      // Avoid returning provider payloads, tokens, SQL errors, or medical information.
+      return send(invalid?400:503,{error:invalid?'Invalid request.':'Billing is unavailable or the request needs review. Please refresh before retrying.'});
+    }
+  });
+}

@@ -26,3 +26,17 @@ test('native desktop setup, profiles, demo, hold, compact and clear',async()=>{
   await page.evaluate(()=>window.intera.command({type:'clear'}));await expect(page.getByText('Ready to interpret',{exact:true})).toBeVisible();
  }finally{await app.close();}
 });
+
+test('account panel is explicit about unconfigured billing and does not expose a payment key',async()=>{
+ const env=Object.fromEntries(Object.entries(process.env).filter(([k,v])=>k!=='ELECTRON_RUN_AS_NODE'&&!k.startsWith('INTERA_')&&v!==undefined)) as Record<string,string>;
+ const app=await electron.launch({args:['.','--test-isolated'],env});
+ try{
+  const page=await app.firstWindow();await page.getByRole('button',{name:'Performance profile'}).click();
+  await page.getByRole('button',{name:'Account',exact:true}).click();
+  await expect(page.getByText('Paid plans are not available in this build yet.')).toBeVisible();
+  expect(await page.evaluate(()=>window.intera.billing({type:'status'}))).toEqual({ok:true,view:{configured:false}});
+  await mkdir('test-results/screenshots',{recursive:true});await page.screenshot({path:'test-results/screenshots/whop-account-unconfigured.png'});
+  await page.getByRole('button',{name:'Close settings'}).click();
+  await expect(page.getByText('Ready to interpret',{exact:true})).toBeVisible();
+ }finally{await app.close();}
+});

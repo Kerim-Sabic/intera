@@ -5,6 +5,7 @@ import os from 'node:os';
 import {readFile,writeFile} from 'node:fs/promises';
 import {Store} from './store';
 import {Coordinator} from './coordinator';
+import {AccountClient} from './account';
 import {commandSchema,type State} from '../shared/protocol';
 import {BRAND,preferencesSchema,regions} from '../shared/config';
 import {displayed} from '../shared/transcript';
@@ -35,6 +36,8 @@ if(single)app.whenReady().then(async()=>{
  app.setName(BRAND);Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
  const store=new Store();
+ const accounts=new AccountClient();
+ ipcMain.handle('billing',async(e,raw)=>trusted(e)?accounts.command(raw):{ok:false,message:'Denied'});
  coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'){const [major,minor]=process.getSystemVersion().split('.').map(Number);if(major<14||(major===14&&minor<2))throw new Error('Native capture requires macOS 14.2+');}const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences());
  coordinator.key=await store.key();coordinator.glossary=store.glossary();coordinator.state.keyStored=!!coordinator.key;coordinator.state.secureStorage=await store.secure();
  ipcMain.handle('snapshot',e=>{if(!trusted(e))throw new Error('Denied');return coordinator.state;});

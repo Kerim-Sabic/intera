@@ -19,7 +19,9 @@
     "make": "npm run build && electron-forge make",
     "compare": "tsx scripts/compare.ts",
     "smoke": "tsx scripts/compare.ts --smoke",
-    "diagnostics:capture": "npm run build && tsx scripts/capture-diagnostic.ts"
+    "diagnostics:capture": "npm run build && tsx scripts/capture-diagnostic.ts",
+    "server": "tsx server/main.ts",
+    "server:check": "tsx scripts/whop-check.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",
@@ -31,18 +33,24 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@electron-forge/cli": "7.11.2",
     "@electron-forge/maker-dmg": "7.11.2",
     "@electron-forge/maker-squirrel": "7.11.2",
     "@electron-forge/maker-zip": "7.11.2",
     "@playwright/test": "1.63.0",
+    "@supabase/supabase-js": "2.117.2",
     "@types/node": "26.6.3",
+    "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/ws": "8.18.2",
+    "@whop/sdk": "2.0.0",
     "electron": "44.4.5",
     "esbuild": "0.28.2",
     "eslint": "10.11.0",
+    "pg": "8.23.0",
+    "supabase": "2.118.0",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.0",
