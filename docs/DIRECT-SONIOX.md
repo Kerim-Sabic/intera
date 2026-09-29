@@ -1,5 +1,7 @@
 # Direct Soniox payment — internal beta
 
+For a short, illustrated customer walkthrough, see [Set up Intera with your own Soniox account](SONIOX-SETUP-FOR-USERS.md).
+
 The owner selected this priority over VIP prepaid billing on 2026-09-30. Each customer owns and funds a Soniox organization/project and connects its key to Intera. Intera adds no usage fee in personal mode. This is guided provider setup, not an embedded card checkout or automatic transfer to Intera's company account.
 
 ## Customer journey
