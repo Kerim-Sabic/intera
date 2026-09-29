@@ -29,7 +29,9 @@ export function AccountPanel(){
       <div className="account-actions"><span>{view.email}</span><button disabled={busy} onClick={()=>void send({type:'sign-out'})}>Sign out</button><button disabled={busy} onClick={()=>void send({type:'status'})}>Refresh billing</button></div>
       {summary&&<>
         <p><strong>{Math.floor(summary.remainingMs/60_000).toLocaleString()} minutes remaining</strong> · {summary.environment==='sandbox'?'Sandbox · test purchases only':'Paid allowance'}</p>
-        <p>Managed streaming is not released yet. This balance does not enable listening with an Intera company key.</p>
+        <p>{summary.managedStreamingAvailable?'Managed beta listening is ready for this account.':'Managed listening is unavailable for this account or the service is not ready.'}</p>
+        {summary.usage?.finalizing&&<p className="account-message" role="status">Usage finalizing · {Math.ceil(summary.usage.reservedMs/60000)} minutes reserved. The final duration comes from Soniox usage records.</p>}
+        {summary.usage?.reviewRequired&&<p role="status">Usage needs review. New managed sessions are paused.</p>}
         {summary.memberships.map(m=><div className="membership" key={m.id}>
           <span>Subscription: {m.blocked?'Ownership review required':m.status}{m.cancel_at_period_end?' · cancels at period end':''}</span>
           <button disabled={busy||m.blocked} onClick={()=>void send({type:'portal',membershipId:m.id})}>Manage subscription</button>

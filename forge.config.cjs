@@ -1,6 +1,6 @@
 module.exports = {
   packagerConfig: {
-    asar: true, executableName: 'Intera', appBundleId: 'com.intera.desktop',
+    asar: true, executableName: 'Intera', appBundleId: 'com.intera.desktop', icon:'assets/brand/exports/intera',
     ignore: [/^\/src/, /^\/tests/, /^\/scripts/, /^\/docs/, /^\/server/, /^\/supabase/, /^\/\.env/, /^\/\.github/, /playwright/],
     extendInfo: { NSAudioCaptureUsageDescription: 'Intera listens to a copy of computer playback for transcription and translation.', NSScreenCaptureUsageDescription: 'Intera uses a display capture stream to acquire computer audio. Video frames are never displayed, saved or uploaded.', NSMicrophoneUsageDescription: 'Only Selected input mode uses an explicitly selected microphone or virtual audio device.' },
     ...(process.env.APPLE_SIGN_IDENTITY ? {osxSign:{identity:process.env.APPLE_SIGN_IDENTITY,hardenedRuntime:true,optionsForFile:()=>({entitlements:'assets/entitlements.plist'})}} : {}),

@@ -1,0 +1,14 @@
+import React,{useState} from 'react';
+import {AccountPanel} from './account';
+import {Brand} from './brand';
+import {selectProfile} from '../shared/config';
+import type {State,Command} from '../shared/protocol';
+export function Onboarding({s,send,done}:{s:State;send:(c:Command)=>Promise<unknown>;done:()=>void}){
+ const [step,setStep]=useState(0);
+ return <div className="onboarding"><Brand/><h2>A little preparation.<br/>More room to listen.</h2><ol className="setup-steps">{['Your account','Meeting playback','Your reading pace','Ready'].map((name,i)=><li key={name}><button aria-current={step===i?'step':undefined} onClick={()=>setStep(i)}>{i+1}. {name}</button></li>)}</ol>
+ {step===0&&<><AccountPanel/><p>Eligible new accounts receive 30 minutes to try Intera, expiring after 14 days. Demo needs no account.</p></>}
+ {step===1&&<><h3>Listen to meeting playback</h3><p>Choose your meeting’s speaker or headset in the meeting app. Intera copies all computer playback, including notifications. It does not request your physical microphone.</p><p>Play an authorized sample, then run this local test. Nothing is uploaded.</p><div className="actions"><button onClick={()=>void send({type:'local-test'})}>Start local playback test</button><button onClick={()=>void send({type:'stop'})}>Stop test</button></div><p role="status">{s.captureHealth} · {s.audio?`${s.audio.sampleRate} Hz / ${s.audio.channels} channels`:'No samples yet'}</p></>}
+ {step===2&&<><h3>English ↔ Bosanski</h3><p>Choose responsiveness. All plans retain the same model and audio fidelity.</p><div className="profile-options">{(['Speed','Balanced','Accuracy-first'] as const).map(profile=><button key={profile} className={s.preferences.processing.profile===profile?'selected':''} onClick={()=>void send({type:'preferences',preferences:{...s.preferences,processing:selectProfile(s.preferences.processing,profile)},timing:'next'})}>{profile}</button>)}</div><div className="text-preview"><small>SYNTHETIC TEXT PREVIEW</small><p>Could you repeat the last sentence?</p><strong>Možete li ponoviti posljednju rečenicu?</strong></div></>}
+ {step===3&&<><h3>Your workspace is ready to review</h3><p>Start checks your signed-in account and reserves eligible time. Audio is sent directly to Soniox after your authorization. Remaining usage is finalized from provider records after stopping.</p><p>Managed beta access depends on the configured service and account eligibility. Existing text remains readable and exportable when allowance runs out.</p></>}
+ <div className="setup-actions"><button onClick={()=>{void send({type:'demo'});done();}}>Explore a clearly labeled demo</button>{step<3?<button className="primary" onClick={()=>{if(step===1)void send({type:'stop'});setStep(step+1);}}>Continue</button>:<button className="primary" onClick={()=>{void send({type:'preferences',preferences:{...s.preferences,onboarded:true},timing:'next'});done();}}>Open workspace</button>}</div></div>;
+}
