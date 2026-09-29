@@ -4,6 +4,8 @@ import {readFile,writeFile,rename,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {billingCommand,billingSummary,type BillingView,type BillingReply} from '../shared/billing';
+import {admissionSchema} from '../shared/managed';
+import {destination} from '../shared/config';
 
 export class AccountClient {
   private auth:SupabaseClient|null=null;
@@ -39,6 +41,7 @@ export class AccountClient {
     this.auth=createClient(url,key,{auth:{storage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   }
   private async api(route:string,body?:unknown){
+    if(!this.auth||!this.backend)throw new Error('Account service is not configured.');
     const session=await this.auth!.auth.getSession();
     if(!session.data.session)throw new Error('Sign in first.');
     const response=await fetch(this.backend+route,{method:body?'POST':'GET',redirect:'error',
@@ -47,6 +50,12 @@ export class AccountClient {
     if(!response.ok)throw new Error(response.status===401?'Sign in again.':'Billing could not be refreshed. No purchase or allowance was confirmed.');
     return response.json();
   }
+  async admit(){
+    const admission=admissionSchema.parse(await this.api('/stream/admit',{requestId:randomUUID()}));
+    if(admission.endpoint!==destination(admission.region)||Date.parse(admission.expiresAt)<=Date.now())throw new Error('Managed admission is unavailable or expired.');
+    return admission;
+  }
+  async end(id:string){await this.api('/stream/end',{leaseId:id});}
   private async view():Promise<BillingView>{
     if(!this.auth)return {configured:false};
     const {data}=await this.auth.auth.getSession();

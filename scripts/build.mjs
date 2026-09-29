@@ -1,7 +1,11 @@
 import { build } from 'esbuild';
 import { build as vite } from 'vite';
-import { mkdir, copyFile } from 'node:fs/promises';
+import { mkdir, copyFile, writeFile } from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
 await mkdir('dist',{recursive:true});
+const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const dirty=!!execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim();
+await writeFile('dist/build-info.json',JSON.stringify({sha,dirty,builtAt:new Date().toISOString()},null,2));
 await vite({root:'src/renderer',base:'./',build:{outDir:'../../dist/ui',emptyOutDir:true}});
 await build({entryPoints:['src/main/main.ts','src/preload.ts','src/capture-preload.ts'],bundle:true,platform:'node',format:'cjs',outdir:'dist',entryNames:'[name]',outExtension:{'.js':'.cjs'},external:['electron'],packages:'bundle'});
 await copyFile('src/capture/host.html','dist/host.html');

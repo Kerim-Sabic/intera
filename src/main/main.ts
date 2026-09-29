@@ -9,6 +9,7 @@ import {AccountClient} from './account';
 import {commandSchema,type State} from '../shared/protocol';
 import {BRAND,preferencesSchema,regions} from '../shared/config';
 import {displayed} from '../shared/transcript';
+import {visualFixture} from '../shared/visual-fixture';
 if(process.argv.includes('--test-isolated')){
  const label=process.argv.find(v=>v.startsWith('--test-profile='))?.slice(15);
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
@@ -18,8 +19,8 @@ const single=!squirrelStartup&&app.requestSingleInstanceLock();if(!single)app.qu
 app.on('second-instance',()=>{const w=[...views][0];if(w){w.restore();w.focus();}});
 function protect(w:BrowserWindow){w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',e=>e.preventDefault());w.webContents.on('render-process-gone',()=>{if(w===captureHost)coordinator?.fail('Capture host stopped. Restart listening explicitly.');});}
 function windowView(small=false){
- const w=new BrowserWindow({width:small?500:1100,height:small?280:760,minWidth:small?360:680,minHeight:small?220:520,title:BRAND,alwaysOnTop:small,backgroundColor:'#F5F5F7',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false}});
- views.add(w);protect(w);w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}});
+ const w=new BrowserWindow({width:small?500:1100,height:small?280:760,minWidth:small?360:680,minHeight:small?220:520,title:BRAND,alwaysOnTop:small,show:!small,icon:path.join(app.getAppPath(),'assets/brand/exports/intera.ico'),backgroundColor:'#F5F3ED',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false}});
+ if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}});
  w.on('closed',()=>{views.delete(w);if(compact===w)compact=null;if(!views.size)void coordinator.stop();});return w;
 }
 async function makeCapture(){
@@ -33,12 +34,15 @@ async function makeCapture(){
 }
 function trusted(event:Electron.IpcMainInvokeEvent|Electron.IpcMainEvent,capture=false){const w=BrowserWindow.fromWebContents(event.sender);return !!w&&(capture?w===captureHost:views.has(w))&&event.senderFrame===event.sender.mainFrame;}
 if(single)app.whenReady().then(async()=>{
- app.setName(BRAND);Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'}]));
+ app.setName(BRAND);
+ const build=JSON.parse(await readFile(path.join(__dirname,'build-info.json'),'utf8')) as {sha:string;dirty:boolean};
+ app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · unsigned unless separately signed`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
+ Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera',click:()=>app.showAboutPanel()}]}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
  const store=new Store();
  const accounts=new AccountClient();
- ipcMain.handle('billing',async(e,raw)=>trusted(e)?accounts.command(raw):{ok:false,message:'Denied'});
- coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'){const [major,minor]=process.getSystemVersion().split('.').map(Number);if(major<14||(major===14&&minor<2))throw new Error('Native capture requires macOS 14.2+');}const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences());
+ ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
+ coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'){const [major,minor]=process.getSystemVersion().split('.').map(Number);if(major<14||(major===14&&minor<2))throw new Error('Native capture requires macOS 14.2+');}const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
  coordinator.key=await store.key();coordinator.glossary=store.glossary();coordinator.state.keyStored=!!coordinator.key;coordinator.state.secureStorage=await store.secure();
  ipcMain.handle('snapshot',e=>{if(!trusted(e))throw new Error('Denied');return coordinator.state;});
  ipcMain.on('capture-format',(e,epoch,format)=>{if(trusted(e,true))try{coordinator.format(epoch,format);}catch{coordinator.fail('Unsupported capture format.');}});
@@ -56,7 +60,7 @@ if(single)app.whenReady().then(async()=>{
     case 'stop':await coordinator.stop();break;
     case 'clear':await coordinator.clear();break;
     case 'finish':coordinator.finalize();break;
-    case 'compact':if(!compact)compact=windowView(true);else compact.show();break;
+    case 'compact':if(!compact)compact=windowView(true);else compact.showInactive();break;
     case 'hold':coordinator.state.hold=coordinator.state.hold?null:structuredClone(coordinator.state.transcript);break;
     case 'preferences':if('preferences' in c){await coordinator.preferences(c.preferences,c.timing);store.save(c.preferences);}break;
     case 'cancel-pending':if(coordinator.state.effective){coordinator.state.preferences={...coordinator.state.preferences,processing:coordinator.state.effective};store.save(coordinator.state.preferences);}coordinator.state.pending=null;break;
@@ -75,8 +79,11 @@ if(single)app.whenReady().then(async()=>{
  });
  powerMonitor.on('suspend',()=>void coordinator.stop('paused'));powerMonitor.on('lock-screen',()=>void coordinator.stop('paused'));
  screen.on('display-removed',()=>{if(compact){const area=screen.getPrimaryDisplay().workArea;compact.setPosition(area.x+20,area.y+20);}});
+ if(process.argv.includes('--test-isolated')&&process.argv.includes('--visual-fixture')){coordinator.state.transcript=visualFixture();coordinator.state.demo=true;coordinator.state.status='stopped';coordinator.state.captureHealth='Simulated';}
  windowView();if(process.argv.includes('--demo'))await coordinator.start(true);
 });
 app.on('activate',()=>{if(!views.size&&coordinator)windowView();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 app.on('before-quit',()=>{if(!quitting){quitting=true;coordinator?.dispose();}});
+
+

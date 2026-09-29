@@ -9,7 +9,8 @@ export const billingCommand=z.discriminatedUnion('type',[
 ]);
 export type BillingCommand=z.infer<typeof billingCommand>;
 export const billingSummary=z.object({
-  environment:z.enum(['sandbox','production']),salesEnabled:z.boolean(),managedStreamingAvailable:z.literal(false),
+  environment:z.enum(['sandbox','production']),salesEnabled:z.boolean(),managedStreamingAvailable:z.boolean(),
+  usage:z.object({availableMs:z.number(),reservedMs:z.number(),finalizing:z.boolean(),reviewRequired:z.boolean(),region:z.enum(['us','eu','jp','in'])}).optional(),
   remainingMs:z.number().nonnegative(),
   pendingCheckoutOffers:z.array(z.string()),
   memberships:z.array(z.object({id:z.string(),status:z.string(),blocked:z.boolean(),cancel_at_period_end:z.boolean(),period_end:z.string().nullable()})),
