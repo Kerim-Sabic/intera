@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Database } from './db';
 import { offerSchema } from './catalog';
 import type { BillingService } from './billing';
+import type {StreamingService} from './streaming';
 
 export type Authenticate = (authorization:string|undefined)=>Promise<string>;
 export function supabaseAuthenticator(db:Database,url:string,publishableKey:string):Authenticate {
@@ -27,7 +28,7 @@ async function body(req:IncomingMessage,max=64_000) {
   for await(const chunk of req){size+=chunk.length;if(size>max)throw new Error('Request too large.');chunks.push(chunk);}
   return Buffer.concat(chunks).toString('utf8');
 }
-export function billingServer(service:BillingService,authenticate:Authenticate) {
+export function billingServer(service:BillingService,authenticate:Authenticate,streaming?:StreamingService) {
   return createServer(async(req,res)=>{
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Content-Type-Options','nosniff');
@@ -44,8 +45,19 @@ export function billingServer(service:BillingService,authenticate:Authenticate) 
       let userId:string;
       try{userId=await authenticate(req.headers.authorization);}catch{return send(401,{error:'Sign in with a verified account.'});}
       const account=await service.account(userId);
+      if(route==='/stream/status'&&req.method==='GET'&&streaming)return send(200,await streaming.status(account.id));
+      if(route==='/stream/admit'&&req.method==='POST'&&streaming){
+        const input=z.object({requestId:z.uuid()}).strict().parse(JSON.parse(await body(req)));
+        return send(200,await streaming.admit(account.id,input.requestId));
+      }
+      if(route==='/stream/end'&&req.method==='POST'&&streaming){
+        const input=z.object({leaseId:z.uuid()}).strict().parse(JSON.parse(await body(req)));
+        return send(200,await streaming.endIntent(account.id,input.leaseId));
+      }
       if(route==='/billing' && req.method==='GET'){
-        await service.refreshAccount(account.id);return send(200,await service.status(account.id));
+        await service.refreshAccount(account.id);const billing=await service.status(account.id);
+        const usage=streaming?await streaming.status(account.id):undefined;
+        return send(200,{...billing,...(usage?{managedStreamingAvailable:usage.managedStreamingAvailable,remainingMs:usage.availableMs,usage}:{})});
       }
       if(route==='/billing/checkout' && req.method==='POST'){
         const input=z.object({offer:offerSchema,requestId:z.uuid()}).strict().parse(JSON.parse(await body(req)));
@@ -55,8 +67,6 @@ export function billingServer(service:BillingService,authenticate:Authenticate) 
         const input=z.object({membershipId:z.string().regex(/^mem_[a-zA-Z0-9]+$/)}).strict().parse(JSON.parse(await body(req)));
         return send(200,await service.portal(account.id,input.membershipId));
       }
-      // There is deliberately no company Soniox token endpoint. Purchasing time cannot
-      // unlock an unmetered session. BYOK remains independent in the existing desktop.
       return send(404,{error:'Not found.'});
     }catch(error){
       const invalid=error instanceof z.ZodError || error instanceof SyntaxError;

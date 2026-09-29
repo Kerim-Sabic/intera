@@ -14,9 +14,9 @@ export function destination(region:z.infer<typeof regionSchema>) { return `wss:/
 export const processingSchema = z.object({profile:z.enum(['Speed','Balanced','Accuracy-first','Custom']),endpoint:endpointSchema,mode:z.enum(['two_way','bs','en','none']),strict:z.boolean(),speakers:z.boolean(),packetMs:z.union([z.literal(40),z.literal(80),z.literal(120)])}).strict().superRefine((p,c)=>{if(p.profile!=='Custom' && (Object.keys(p.endpoint) as (keyof Endpoint)[]).some(k=>p.endpoint[k]!==profiles[p.profile as keyof typeof profiles][k])) c.addIssue({code:'custom',message:'Profile settings must match its name'});});
 export type Processing = z.infer<typeof processingSchema>;
 export const presetSchema=z.object({name:z.string().trim().min(1).max(40),endpoint:endpointSchema}).strict();
-export const preferencesSchema=z.object({version:z.literal(1),processing:processingSchema,drafts:z.boolean(),sourceSize:z.number().int().min(14).max(24),translationSize:z.number().int().min(18).max(36),theme:z.enum(['system','light','dark']),showSource:z.boolean(),region:regionSchema,presets:z.array(presetSchema).max(20),onboarded:z.boolean()}).strict();
+export const preferencesSchema=z.object({version:z.literal(1),funding:z.enum(['managed','personal']).default('managed'),processing:processingSchema,drafts:z.boolean(),sourceDrafts:z.boolean().default(true),translationDrafts:z.boolean().default(true),sourceSpacing:z.number().min(1.2).max(2).default(1.65),translationSpacing:z.number().min(1.2).max(2).default(1.48),sourceSize:z.number().int().min(14).max(24),translationSize:z.number().int().min(18).max(36),theme:z.enum(['system','light','dark']),showSource:z.boolean(),region:regionSchema,presets:z.array(presetSchema).max(20),onboarded:z.boolean()}).strict();
 export type Preferences=z.infer<typeof preferencesSchema>;
-export const defaults:Preferences={version:1,processing:{profile:'Balanced',endpoint:profiles.Balanced,mode:'two_way',strict:false,speakers:true,packetMs:80},drafts:true,sourceSize:17,translationSize:23,theme:'system',showSource:true,region:'us',presets:[],onboarded:false};
+export const defaults:Preferences={version:1,funding:'managed',processing:{profile:'Balanced',endpoint:profiles.Balanced,mode:'two_way',strict:false,speakers:true,packetMs:80},drafts:true,sourceDrafts:true,translationDrafts:true,sourceSpacing:1.65,translationSpacing:1.48,sourceSize:19,translationSize:26,theme:'system',showSource:true,region:'us',presets:[],onboarded:false};
 export const glossarySchema=z.object({terms:z.array(z.string().trim().min(1).max(100)).max(100),translations:z.array(z.object({source:z.string().trim().min(1).max(100),target:z.string().trim().min(1).max(100)}).strict()).max(100)}).strict().superRefine((g,c)=>{if(new Set(g.terms.map(t=>t.toLowerCase())).size!==g.terms.length || new Set(g.translations.map(t=>t.source.toLowerCase())).size!==g.translations.length)c.addIssue({code:'custom',message:'Duplicate or conflicting glossary terms'});});
 export type Glossary=z.infer<typeof glossarySchema>;
 export const emptyGlossary:Glossary={terms:[],translations:[]};
@@ -30,3 +30,6 @@ export function providerConfig(processing:Processing,audio:AudioFormat,glossary:
     context:{general:[{key:'domain',value:'Medical conversation'},{key:'language preference',value:'Bosnian Latin, ijekavian'}],terms:g.terms,translation_terms:g.translations}};
 }
 export function selectProfile(p:Processing,profile:Processing['profile']):Processing{return {...p,profile,endpoint:profile==='Custom'?{...p.endpoint}:{...profiles[profile]}};}
+
+
+export function draftVisibility(p:Preferences){return {source:p.drafts&&p.sourceDrafts,translation:p.drafts&&p.translationDrafts};}
