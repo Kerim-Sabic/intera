@@ -203,7 +203,8 @@ export class BillingService {
     }
     const refund=Math.max(0,(p.refunded_amount??0)-(p.tax_refunded_amount??0));
     const disputed=p.disputes.some(d=>!['won','closed'].includes(d.status));
-    const blocked=!!member?.blocked || disputed || ['refunded','disputed','chargeback'].includes(p.substatus);
+    const blocked=!!member?.blocked || disputed || refund>=product.cents ||
+      (prior?.status==='paid' && p.status!=='paid') || ['refunded','disputed','chargeback'].includes(p.substatus);
     await sql.query(`insert into private.payment_records(id,account_id,membership_id,status,refunded_cents,blocked,checked_at)
       values($1,$2,$3,$4,$5,$6,$7) on conflict(id) do update set status=excluded.status,
       refunded_cents=greatest(private.payment_records.refunded_cents,excluded.refunded_cents),

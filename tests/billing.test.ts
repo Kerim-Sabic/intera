@@ -128,6 +128,8 @@ describe('Whop billing database invariants',()=>{
     expect(await paidBalance()).toBe(18_000_000);p.refunded_amount=1900;await service.reconcilePayment(p.id);expect(await paidBalance()).toBe(0);
     expect((await db.query("select * from private.allowance_entries where kind='refund'")).rows).toHaveLength(2);
     await expect(db.query('delete from private.allowance_entries')).rejects.toThrow('append-only');
+    await expect(db.query('update private.allowance_entries set amount_ms=1')).rejects.toThrow('append-only');
+    await expect(service.checkout(accountId,'extra',randomUUID())).rejects.toThrow('active paid');
   });
   it('requires paid membership for extra purchases and preserves purchased extra time after cancellation',async()=>{
     await expect(service.checkout(accountId,'extra',randomUUID())).rejects.toThrow('active paid');
