@@ -3,8 +3,10 @@ import {billingLock,type Database,type Sql} from './db';
 import {balances} from './ledger';
 import {destination} from '../src/shared/config';
 import {usageRecord,exactCost,type SpeechProvider,type StreamConfig,type UsageRecord} from './soniox';
+import type {VipService} from './vip';
 
 export class StreamingService{
+ vip?:VipService;
  private checkedAt=0;
  private bound=false;
  constructor(readonly db:Database,readonly provider:SpeechProvider,readonly config:StreamConfig,readonly now=()=>new Date()){}
@@ -26,17 +28,24 @@ export class StreamingService{
    availableMs:buckets.reduce((n,b)=>n+Math.max(0,b.remainingMs-(holds.get(b.id)??0)),0),reservedMs:held.rows.reduce((n,r)=>n+Number(r.ms),0),
    finalizing:leases.rows.length>0,leases:leases.rows,reviewRequired:alerts.rows.length>0};
  }
- async admit(account:string,requestId:string){
+ async admit(account:string,requestId:string,mode:'allowance'|'vip'='allowance'){
   if(!this.eligible(account))throw new Error('Managed internal beta is not ready for this account.');
   const now=this.now(),id=randomUUID();
   const reservation=await this.db.transaction(async sql=>{
    await billingLock(sql);await sql.query('select id from private.billing_accounts where id=$1 for update',[account]);
-   const prior=(await sql.query('select id,status from private.stream_leases where account_id=$1 and request_id=$2',[account,requestId])).rows[0];
-   if(prior)return {prior};
+   const prior=(await sql.query('select * from private.stream_leases where account_id=$1 and request_id=$2',[account,requestId])).rows[0];
+   if(prior){if((prior.funding_mode??'allowance')!==mode)throw new Error('Session funding mode is immutable.');return {prior};}
    const alerts=await sql.query('select key from private.stream_alerts where (account_id=$1 or account_id is null) and resolved_at is null',[account]);if(alerts.rows.length)throw new Error('Usage needs review.');
    const unresolved=await sql.query(`select id,conservative_end_at from private.stream_leases where account_id=$1 and status<>'settled'`,[account]);
    if(unresolved.rows.length>=2||unresolved.rows.some(l=>new Date(l.conservative_end_at)>now))throw new Error('Previous stream is still finalizing.');
    const rate=await sql.query('select count(*)::int as count from private.stream_leases where account_id=$1 and created_at>$2',[account,new Date(now.getTime()-60_000).toISOString()]);if(rate.rows[0].count>=3)throw new Error('Admission rate exceeded.');
+   if(mode==='vip'){
+    if(!this.vip)throw new Error('VIP unavailable.');
+    const seconds=Math.min(this.config.maxSeconds,this.vip.config.sessionSeconds);
+    await sql.query(`insert into private.stream_leases(id,account_id,request_id,region,project_ref,status,reserved_ms,max_seconds,created_at,admission_expires_at,conservative_end_at,funding_mode)
+     values($1,$2,$3,$4,$5,'issuing',$6,$7,$8,$9,$10,'vip')`,[id,account,requestId,this.config.region,this.config.projectRef,seconds*1000,seconds,now.toISOString(),new Date(now.getTime()+40_000).toISOString(),new Date(now.getTime()+(seconds+60)*1000).toISOString()]);
+    await this.vip.reserve(sql,account,id);return {seconds};
+   }
    const buckets=await balances(sql,account,now.toISOString());
    const held=await sql.query(`select r.grant_id,sum(r.amount_ms)::text as ms from private.stream_reservations r join private.stream_leases l on l.id=r.lease_id where l.account_id=$1 and l.status<>'settled' group by r.grant_id`,[account]);
    const holds=new Map(held.rows.map(r=>[r.grant_id,Number(r.ms)]));
@@ -75,6 +84,11 @@ export class StreamingService{
   }
   if((await sql.query('select id from private.provider_requests where lease_id=$1',[lease.id])).rows.length){await this.alert(sql,`replay:${record.uuid}`,lease.account_id,'Multiple provider requests for one single-use lease.');return;}
   await sql.query('insert into private.provider_requests(id,lease_id,region,project_ref,model,started_at,ended_at,input_audio_ms,cost_usd) values($1,$2,$3,$4,$5,$6,$7,$8,$9)',[record.uuid,lease.id,lease.region,lease.project_ref,record.model,record.start_time,record.end_time,record.input_audio_duration_ms,record.cost_usd]);
+  if(lease.funding_mode==='vip'){
+   if(!this.vip)throw new Error('VIP settlement unavailable.');
+   const settled=await this.vip.settle(sql,lease.account_id,lease.id,record.uuid,record.cost_usd);
+   await sql.query('update private.stream_leases set status=$2 where id=$1',[lease.id,settled?'settled':'review']);return;
+  }
   const buckets=(await sql.query('select * from private.stream_reservations where lease_id=$1 order by ordinal',[lease.id])).rows;
   let left=record.input_audio_duration_ms;
   for(let i=0;i<buckets.length;i++){const b=buckets[i],used=i===buckets.length-1?left:Math.min(left,Number(b.amount_ms));if(used)await sql.query("insert into private.allowance_entries(id,grant_id,operation_key,amount_ms,kind) values($1,$2,$3,$4,'usage') on conflict do nothing",[randomUUID(),b.grant_id,`soniox:${record.uuid}:${i}`,-used]);left-=used;}

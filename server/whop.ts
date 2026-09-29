@@ -44,6 +44,7 @@ export function validateCatalogVariant(input: unknown, offer: Offer, planId: str
     throw new Error('Whop plan does not match the approved Intera catalog and tax settings.');
 }
 export interface Provider {
+  checkoutCredit?(planId:string,amount:string,accountId:string,intentId:string):Promise<{id:string;url:string}>;
   checkout(offer: Offer, accountId: string, intentId: string): Promise<{ id: string; url: string }>;
   payment(id: string): Promise<Payment>;
   membership(id: string): Promise<Membership>;
@@ -77,6 +78,18 @@ export class WhopProvider implements Provider {
         intera_environment: this.config.environment, intera_catalog: '2026-09-v1' },
     }));
     return {id:result.id, url:hostedUrl(result.purchase_url, this.config)};
+  }
+  async checkoutCredit(planId:string,amount:string,accountId:string,intentId:string){
+    const v=z.object({id:identifier,account:reference,currency:z.literal('usd'),plan_type:z.literal('one_time'),
+      initial_price:money,renewal_price:money,trial_period_days:z.number().nullable(),collect_tax:z.literal(true),
+      tax_type:z.literal('exclusive'),adaptive_pricing_enabled:z.literal(false),split_pay_required_payments:z.number().nullable()})
+      .parse(await this.api(`/variants/${identifier.parse(planId)}`,undefined,CURRENT_VERSION));
+    if(v.id!==planId||v.account.id!==this.config.companyId||v.initial_price!==cents(amount)||v.renewal_price!==0||v.trial_period_days||v.split_pay_required_payments)throw new Error('VIP catalog mismatch.');
+    const result=z.object({id:identifier,purchase_url:z.url()}).parse(await this.api('/checkout_configurations',{
+      plan_id:planId,mode:'payment',redirect_url:this.config.returnUrl,
+      metadata:{intera_billing_account_id:accountId,intera_vip_intent_id:intentId,intera_environment:this.config.environment,intera_catalog:'vip-credit-v1'},
+    }));
+    return {id:result.id,url:hostedUrl(result.purchase_url,this.config)};
   }
   async payment(id: string) { return paymentSchema.parse(await this.api(`/payments/${identifier.parse(id)}`)); }
   async retireCheckout(id:string){

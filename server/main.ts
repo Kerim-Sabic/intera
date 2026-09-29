@@ -5,13 +5,19 @@ import { BillingService } from './billing';
 import { billingServer, supabaseAuthenticator } from './http';
 import {SonioxProvider,streamConfiguration} from './soniox';
 import {StreamingService} from './streaming';
+import {vipConfiguration} from './vip-config';
+import {VipService} from './vip';
+import {VipTreasury} from './vip-treasury';
 
 const config=configuration(process.env);
 const db=postgres(process.env.DATABASE_URL??'');
 const service=new BillingService(db,new WhopProvider(config),config);
 const streamConfig=streamConfiguration(process.env);
 const streaming=new StreamingService(db,new SonioxProvider(streamConfig),streamConfig);
-const server=billingServer(service,supabaseAuthenticator(db,process.env.SUPABASE_URL??'',process.env.SUPABASE_PUBLISHABLE_KEY??''),streaming);
+const vipConfig=vipConfiguration(process.env);
+const vip=new VipService(db,service.provider,config,vipConfig,new VipTreasury(db,vipConfig,{environment:config.environment,companyId:config.companyId,projectRef:streamConfig.projectRef,region:streamConfig.region}));
+service.vipPayments=vip;streaming.vip=vip;
+const server=billingServer(service,supabaseAuthenticator(db,process.env.SUPABASE_URL??'',process.env.SUPABASE_PUBLISHABLE_KEY??''),streaming,vip);
 server.requestTimeout=15_000;server.headersTimeout=10_000;server.maxHeadersCount=40;
 const ready=service.initialize().then(async()=>{try{await streaming.initialize();}catch{console.error('Managed streaming is unavailable; billing remains independent.');}});
 ready.then(()=>server.listen(Number(process.env.PORT??8787),process.env.BIND_HOST??'127.0.0.1'))

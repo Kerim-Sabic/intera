@@ -7,6 +7,7 @@ import { verifyEvent, type Provider, type Membership, type Payment } from './who
 
 type Account = {id:string; auth_user_id:string; whop_user_id:string|null};
 export class BillingService {
+  vipPayments?:{reconcilePayment(payment:Payment):Promise<boolean>};
   constructor(readonly db:Database, readonly provider:Provider, readonly config:BillingConfig,
     readonly now:()=>Date=()=>new Date()) {}
 
@@ -126,6 +127,7 @@ export class BillingService {
         m.renewal_period_start,m.renewal_period_end,this.now().toISOString(),m.id]);
   }
   async reconcilePayment(id:string) {
+    if(this.vipPayments){const payment=await this.provider.payment(id);if(payment.id!==id)throw new Error('Payment identifier mismatch.');this.assertCompany(payment.company.id);if(await this.vipPayments.reconcilePayment(payment))return;}
     const outcome=await this.db.transaction(async sql=>{
       await billingLock(sql);
       const p=await this.provider.payment(id);
