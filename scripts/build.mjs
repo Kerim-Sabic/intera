@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 await mkdir('dist',{recursive:true});
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 const dirty=!!execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim();
-await writeFile('dist/build-info.json',JSON.stringify({sha,dirty,builtAt:new Date().toISOString()},null,2));
+await writeFile('dist/build-info.json',JSON.stringify({sha,dirty,macUpdatesApproved:process.env.INTERA_MAC_UPDATES_APPROVED==='1'&&!!process.env.APPLE_SIGN_IDENTITY&&!!process.env.APPLE_ID&&!!process.env.APPLE_APP_SPECIFIC_PASSWORD&&!!process.env.APPLE_TEAM_ID,updateTeamId:process.env.INTERA_MAC_UPDATES_APPROVED==='1'?process.env.APPLE_TEAM_ID:undefined,builtAt:new Date().toISOString()},null,2));
 await vite({root:'src/renderer',base:'./',build:{outDir:'../../dist/ui',emptyOutDir:true}});
 await build({entryPoints:['src/main/main.ts','src/preload.ts','src/capture-preload.ts'],bundle:true,platform:'node',format:'cjs',outdir:'dist',entryNames:'[name]',outExtension:{'.js':'.cjs'},external:['electron'],packages:'bundle'});
 await copyFile('src/capture/host.html','dist/host.html');

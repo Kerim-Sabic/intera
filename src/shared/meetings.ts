@@ -1,0 +1,6 @@
+import {z} from 'zod';
+const snapshot=z.object({source:z.string().max(2_000_000),translation:z.string().max(2_000_000),revision:z.number().int().nonnegative()});
+const group=z.object({id:z.string().max(100),epoch:z.number().int().nonnegative(),speaker:z.string().max(100),language:z.string().max(16),source:z.string().max(2_000_000),translation:z.string().max(2_000_000),sourceDraft:z.string().max(20000),translationDraft:z.string().max(20000),revision:z.number().int().nonnegative(),boundary:z.boolean(),unpaired:z.boolean(),edit:z.object({source:z.string().max(30000),translation:z.string().max(30000)}).optional(),pinned:snapshot.optional(),interpreted:snapshot.optional()});
+export const meetingSchema=z.object({version:z.literal(1),id:z.uuid(),title:z.string().trim().min(1).max(120),savedAt:z.iso.datetime(),demo:z.boolean(),names:z.record(z.string().max(120),z.string().max(60)),transcript:z.object({epoch:z.number().int().nonnegative(),event:z.number().int().nonnegative(),serial:z.number().int().nonnegative(),cursor:z.record(z.string().max(150),z.string().max(100)),groups:z.array(group).max(20000)})}).strict();
+export type Meeting=z.infer<typeof meetingSchema>;
+export type MeetingSummary=Pick<Meeting,'id'|'title'|'savedAt'|'demo'>&{turns:number};
