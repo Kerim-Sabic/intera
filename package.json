@@ -5,7 +5,7 @@
   "private": true,
   "description": "User-controlled English / Bosnian desktop interpreter copilot",
   "author": "Intera contributors",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "main": "dist/main.cjs",
   "scripts": {
     "dev": "npm run build && electron .",
