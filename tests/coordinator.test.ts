@@ -1,3 +1,5 @@
+import {EventEmitter} from 'node:events';
+import type WebSocket from 'ws';
 import {describe,it,expect,vi,afterEach} from 'vitest';
 import {Coordinator} from '../src/main/coordinator';
 import {defaults,selectProfile} from '../src/shared/config';
@@ -11,4 +13,22 @@ describe('session ownership',()=>{
  it('profile changes stage; display-only changes do not restart',async()=>{vi.useFakeTimers();const {c,capture}=create();await c.start(true);const updated={...c.state.preferences,processing:selectProfile(defaults.processing,'Speed')};await c.preferences(updated,'pause');expect(c.state.effective?.profile).toBe('Balanced');expect(c.state.pending?.config.profile).toBe('Speed');await c.preferences({...updated,drafts:false},'pause');expect(c.state.effective?.profile).toBe('Balanced');expect(capture.start).not.toHaveBeenCalled();await c.stop('paused');await c.start(true);expect(c.state.effective?.profile).toBe('Speed');expect(c.state.preferences.drafts).toBe(false);c.dispose();});
  it('next-session changes do not apply on resume',async()=>{vi.useFakeTimers();const {c}=create();await c.start(true);await c.preferences({...c.state.preferences,processing:selectProfile(defaults.processing,'Accuracy-first')},'next');await c.stop('paused');await c.start(true);expect(c.state.effective?.profile).toBe('Balanced');await c.stop();await c.start(true);expect(c.state.effective?.profile).toBe('Accuracy-first');c.dispose();});
  it('clear prevents late demo tokens restoring transcript',async()=>{vi.useFakeTimers();const {c}=create();await c.start(true);vi.advanceTimersByTime(1200);expect(c.state.transcript.groups.length).toBeGreaterThan(0);await c.clear();vi.advanceTimersByTime(5000);expect(c.state.transcript.groups).toHaveLength(0);c.dispose();});
+});
+
+it('reports missing provider translations, clears on arrival, and resets on reconnect',async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date('2026-09-30T10:00:00Z'));
+ const ws=Object.assign(new EventEmitter(),{readyState:1,bufferedAmount:0,send:vi.fn(),terminate:vi.fn(),close:vi.fn()});
+ const capture={start:vi.fn(async()=>{}),stop:vi.fn()};
+ const c=new Coordinator(capture,()=>{},{...structuredClone(defaults),funding:'personal'},()=>ws as unknown as WebSocket);c.key='synthetic-test-key';
+ await c.start();const epoch=c.state.transcript.epoch;c.format(epoch,{sampleRate:48000,channels:1});ws.emit('open');
+ const config=JSON.parse(ws.send.mock.calls[0][0]);expect(config.translation).toEqual({type:'two_way',language_a:'en',language_b:'bs'});
+ ws.emit('message',Buffer.from(JSON.stringify({tokens:[{text:'Hello',is_final:true,language:'en',speaker:'1',translation_status:'original'}]})));
+ for(let i=0;i<21;i++){c.packet(epoch,i,new Int16Array([0]).buffer);vi.advanceTimersByTime(1000);}
+ expect(c.state.translationHealth).toMatchObject({sourceTokens:1,translationTokens:0,stalled:true});
+ ws.emit('message',Buffer.from(JSON.stringify({tokens:[{text:'Zdravo',is_final:false,language:'bs',source_language:'en',speaker:'1',translation_status:'translation'}]})));
+ expect(c.state.translationHealth).toMatchObject({translationTokens:1,stalled:false});
+ expect(c.state.transcript.groups[0].translationDraft).toBe('Zdravo');
+ for(let i=21;i<43;i++){c.packet(epoch,i,new Int16Array([0]).buffer);vi.advanceTimersByTime(1000);}
+ expect(c.state.translationHealth?.stalled).toBe(false);
+ c.fail('Synthetic disconnect');await c.start();expect(c.state.translationHealth).toMatchObject({sourceTokens:0,translationTokens:0,stalled:false});c.dispose();
 });

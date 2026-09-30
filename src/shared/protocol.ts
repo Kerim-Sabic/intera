@@ -3,7 +3,7 @@ import {preferencesSchema,glossarySchema,regionSchema,type Preferences,type Proc
 import type {Transcript} from './transcript';
 import type {BillingCommand,BillingReply} from './billing';
 export type Status='idle'|'connecting'|'listening'|'paused'|'stopping'|'stopped'|'error'|'local-test';
-export type State={managed?:{reservedMs:number;provisionalMs:number;boundaryReached?:boolean;finalizing:boolean;region:Preferences['region']};sequence:number;status:Status;demo:boolean;preferences:Preferences;effective:Processing|null;pending:{config:Processing;timing:'pause'|'next'}|null;transcript:Transcript;keyStored:boolean;secureStorage:boolean;message:string;meter:number;packets:number;audio:AudioFormat|null;names:Record<string,string>;hold:Transcript|null;platform:string;captureHealth:string;networkHealth:string};
+export type State={translationHealth?:{sourceTokens:number;translationTokens:number;firstSourceAt:number|null;lastSourceAt:number|null;lastTranslationAt:number|null;stalled:boolean};managed?:{reservedMs:number;provisionalMs:number;boundaryReached?:boolean;finalizing:boolean;region:Preferences['region']};sequence:number;status:Status;demo:boolean;preferences:Preferences;effective:Processing|null;pending:{config:Processing;timing:'pause'|'next'}|null;transcript:Transcript;keyStored:boolean;secureStorage:boolean;message:string;meter:number;packets:number;audio:AudioFormat|null;names:Record<string,string>;hold:Transcript|null;platform:string;captureHealth:string;networkHealth:string};
 
 export const commandSchema=z.discriminatedUnion('type',[
   z.object({type:z.enum(['start','demo','pause','stop','clear','finish','compact','hold','local-test','cancel-pending','validate-key','forget-key','import-settings','export-settings'])}).strict(),

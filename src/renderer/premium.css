@@ -29,3 +29,5 @@ footer{padding:8px 24px;background:var(--canvas);font-size:11px}footer button{fo
    interactive control outside the drag region, including compact mode. */
 [data-platform=darwin] .toolbar{padding-left:92px;-webkit-app-region:drag}
 [data-platform=darwin] .toolbar button,[data-platform=darwin] .toolbar input,[data-platform=darwin] .toolbar select{-webkit-app-region:no-drag}
+
+.translation-status{padding:7px 16px;border-bottom:1px solid var(--border);color:var(--secondary);background:var(--surface);font-size:12px;line-height:1.45}.compact .translation-status{padding:4px 12px;font-size:11px}

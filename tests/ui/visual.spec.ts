@@ -24,6 +24,12 @@ test('synthetic 12-turn visual matrix and compact beginning',async()=>{
   const pending=app.waitForEvent('window');await page.getByRole('button',{name:'Open compact view'}).click();const compact=await pending;await compact.waitForLoadState();await expect(compact.locator('.translation p')).toContainText('Prije nego završimo');
   expect(await compact.locator('.conversation').evaluate(el=>el.scrollTop)).toBe(0);
   await desktopScreenshot(app,compact,{path:`${dir}/compact-default.png`});
+  // A newer untranslated source must not hide an already received translation.
+  await page.evaluate(async()=>{const s=await window.intera.snapshot(),g=s.transcript.groups.at(-1)!;await window.intera.command({type:'group',id:g.id,action:'edit',edit:{source:g.source,translation:''}});});
+  await expect(compact.locator('.translation p')).toContainText('Da. Donesite obrazac');
+  await expect(compact.getByRole('status')).toContainText('newer speech is awaiting translation');
+  expect(await compact.locator('.conversation').evaluate(el=>el.scrollTop)).toBe(0);
+  await desktopScreenshot(app,compact,{path:`${dir}/compact-late-translation.png`});
   await writeFile(`${dir}/matrix.json`,JSON.stringify({kind:'accelerated synthetic UI, not live provider evidence',cases:evidence},null,2));
  }finally{await app.close();}
 });

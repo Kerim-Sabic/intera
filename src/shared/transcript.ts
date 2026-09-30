@@ -43,3 +43,11 @@ export type DraftVisibility=boolean|{source:boolean;translation:boolean};
 export function displayed(g:Group,drafts:DraftVisibility):Snapshot{const source=typeof drafts==='boolean'?drafts:drafts.source,translation=typeof drafts==='boolean'?drafts:drafts.translation;return {source:g.edit?.source??(g.source+(source?g.sourceDraft:'')),translation:g.edit?.translation??(g.translation+(translation?g.translationDraft:'')),revision:g.revision};}
 export function changeGroup(s:Transcript,id:string,action:'pin'|'interpreted'|'edit',drafts:DraftVisibility,edit?:{source:string;translation:string}):Transcript{return {...s,groups:s.groups.map(g=>g.id!==id?g:action==='edit'?{...g,edit,revision:g.revision+1}:action==='pin'?{...g,pinned:g.pinned?undefined:displayed(g,drafts)}:{...g,interpreted:displayed(g,drafts)})};}
 export function changedAfter(g:Group){return !!g.interpreted&&(g.interpreted.source!==displayed(g,true).source||g.interpreted.translation!==displayed(g,true).translation);}
+
+// Keep late provider output readable in compact mode without guessing its pairing.
+export function compactGroup(groups:Group[],drafts:DraftVisibility):Group|undefined{
+  const latest=groups.at(-1);
+  if(!latest||(latest.pinned??displayed(latest,drafts)).translation)return latest;
+  for(let i=groups.length-1;i>=0;i--){if(groups[i].epoch===latest.epoch&&(groups[i].pinned??displayed(groups[i],drafts)).translation)return groups[i];}
+  return latest;
+}
