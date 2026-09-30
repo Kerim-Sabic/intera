@@ -7,12 +7,16 @@ The reported machine is a MacBook Air M1 (2020), 8 GB, macOS 13.1. The reported 
 - [x] Inspect the actual main branch and pinned packaging/runtime code.
 - [x] Research Ventura playback support against Electron 44.4.5 / Chromium 152.0.7977.130.
 - [x] Implement Ventura capture admission, actionable errors, fail-closed signing and installer integrity checks.
-- [ ] Inspect the exact previously downloaded artifact on macOS and compare the new artifact.
+- [x] Inspect the exact previously downloaded Apple Silicon artifact on macOS and compare the new artifact.
 - [ ] Execute packaged launch, reader, compact view and restart tests on ARM64 and Intel Mac runners.
 - [ ] Test physical M1 macOS 13.1 playback, permissions, headset, meeting, sleep and live Soniox.
 - [ ] Supply owner-controlled Developer ID credentials; notarize, staple and assess the distribution build.
 
 ## Findings and changes
+
+**Verified defect in the old download.** On the ARM64 macOS 15.7.9 runner, the original main-run artifact (36706713428, source e655209) failed `codesign --verify --deep --strict` in both its DMG and extracted ZIP: `code has no resources but signature indicates they must be present`. The main executable still identified itself as Electron with an inherited linker ad-hoc signature, no bound Info.plist and no sealed resources. The containers themselves passed checksum/ZIP integrity. This is a reproduced bundle integrity defect consistent with the user's launch warning; the user's physical machine still needs retesting. Merely upgrading macOS does not repair that bundle.
+
+Initial corrected build [2435b5a / run 36753764288](https://github.com/Kerim-Sabic/intera/actions/runs/36753764288) passed strict code-signature checks for the packaged app, DMG-contained app and ZIP-extracted app on ARM64. Its packaged launch/reader/compact/restart test and five desktop UI tests passed. `spctl` rejected the unnotarized ad-hoc beta as expected. The local tone diagnostic received zero samples on the hosted runner and reported **FAIL / unavailable capture**; this is not live Mac audio evidence. Additional lifecycle and evidence-retention fixes follow that initial build; final source/run evidence is recorded below once complete.
 
 **Launch and capture are separate failures.** The old Intera gate rejected playback below 14.2 only when starting capture, so it cannot explain a pre-launch “damaged” alert. The old workflow packaged installers but did not verify the finished code signature, install-container integrity, extracted bundle, or packaged launch. Packager's installed implementation defaults `osxSign.continueOnError` to true. This build explicitly sets it false.
 
@@ -21,6 +25,8 @@ The reported machine is a MacBook Air M1 (2020), 8 GB, macOS 13.1. The reported 
 **Mac beta bundles are re-signed after mutation.** Forge renames Electron and modifies metadata/resources. All nested code and the app are signed using the installed `@electron/osx-sign` traversal. Internal builds use `identity: '-'`, disabled identity lookup, no timestamp and no hardened runtime; a supplied Developer ID uses hardened runtime and the limited JIT/audio entitlements. Signature errors fail packaging. Ad-hoc signatures provide integrity but do not establish developer trust. Gatekeeper rejection remains expected for quarantined beta downloads. Do not call these notarized releases or direct users to disable Gatekeeper.
 
 **Capture failure handling is explicit.** Ended tracks and absent playback tracks fail before an AudioContext/provider stream is created. Denied/dead Mac audio directs users to the privacy pane appropriate to their OS and requests an explicit restart. Capture never falls back to the physical microphone. A startup exception produces a visible error instead of an unhandled initialization rejection.
+
+Capture commands now invalidate earlier asynchronous work before closing old contexts. A Stop while context closure or capture acquisition is pending cannot trigger a late restart; late acquired tracks are stopped. Tests execute the actual capture-host script for these races. A reader-process crash also stops acquisition instead of leaving an invisible stream active.
 
 ## Reproducible checks
 

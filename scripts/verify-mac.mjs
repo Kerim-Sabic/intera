@@ -1,5 +1,5 @@
 import {execFileSync,spawnSync} from 'node:child_process';
-import {readdir,mkdir,writeFile} from 'node:fs/promises';
+import {readdir,mkdir,writeFile,copyFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createReadStream} from 'node:fs';
@@ -20,7 +20,8 @@ async function inspectApp(app,label){
  const binary=run('lipo',['-archs',path.join(app,'Contents/MacOS',info.CFBundleExecutable)]);
  const validMetadata=info.CFBundleIdentifier==='com.intera.desktop'&&info.LSMinimumSystemVersion==='13.0'&&!!info.NSAudioCaptureUsageDescription&&!!info.NSScreenCaptureUsageDescription;
  report.apps.push({label,version:info.CFBundleShortVersionString,minimumOS:info.LSMinimumSystemVersion,validMetadata,signature,identity,gatekeeper,binary});
- if(!signature.ok||!validMetadata)failed=true;
+ const expectedArch=process.arch==='x64'?'x86_64':process.arch;
+ if(!signature.ok||!validMetadata||!binary.ok||!binary.output.trim().split(/\s+/).includes(expectedArch))failed=true;
  // Gatekeeper rejection is expected for internal ad-hoc builds, never for a
  // build explicitly requested as a notarized distribution candidate.
  if(process.env.INTERA_REQUIRE_NOTARIZED==='1'&&!gatekeeper.ok)failed=true;
@@ -32,11 +33,11 @@ for(const file of await files(root)){
   const verify=run('hdiutil',['verify',file]);report.containers.push({file,verify});if(!verify.ok)failed=true;
   const mount=path.join(process.env.RUNNER_TEMP||'/tmp',`intera-audit-${process.pid}-${report.containers.length}`);await mkdir(mount,{recursive:true});
   execFileSync('hdiutil',['attach','-readonly','-nobrowse','-mountpoint',mount,file],{stdio:'pipe'});
-  try{for(const e of await readdir(mount))if(e.endsWith('.app'))await inspectApp(path.join(mount,e),'inside DMG');}finally{execFileSync('hdiutil',['detach',mount],{stdio:'pipe'});}
+  try{const apps=(await readdir(mount)).filter(e=>e.endsWith('.app'));if(apps.length!==1)failed=true;for(const e of apps)await inspectApp(path.join(mount,e),'inside DMG');}finally{execFileSync('hdiutil',['detach',mount],{stdio:'pipe'});}
  }else{
   const verify=run('unzip',['-t',file]);report.containers.push({file,verify});if(!verify.ok)failed=true;
   const target=path.join(process.env.RUNNER_TEMP||'/tmp',`intera-zip-audit-${process.pid}-${report.containers.length}`);await mkdir(target,{recursive:true});
-  execFileSync('ditto',['-x','-k',file,target]);for(const app of await files(target))if(app.endsWith('.app'))await inspectApp(app,'ZIP round trip');
+  execFileSync('ditto',['-x','-k',file,target]);const apps=(await files(target)).filter(app=>app.endsWith('.app'));if(apps.length!==1)failed=true;for(const app of apps)await inspectApp(app,'ZIP round trip');
  }
 }
 if(!report.apps.length)failed=true;
@@ -44,4 +45,5 @@ report.result=failed?'FAIL':'PASS integrity (Gatekeeper status reported separate
 await writeFile(`test-results/mac/${inspect?'baseline':'integrity'}.json`,JSON.stringify(report,null,2));
 await writeFile(`test-results/mac/${inspect?'baseline':'SHA256SUMS'}.txt`,report.checksums.map(x=>`${x.sha256}  ${x.file}`).join('\n')+'\n');
 console.log(JSON.stringify(report,null,2));
+if(!inspect&&!failed){await copyFile('test-results/mac/SHA256SUMS.txt','out/make/SHA256SUMS.txt');await copyFile('test-results/mac/integrity.json','out/make/mac-integrity.json');}
 if(failed&&!inspect)process.exitCode=1;

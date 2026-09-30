@@ -27,23 +27,21 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run make -- --arch=${{ matrix.arch }}
-      - name: Verify Mac app and installer integrity
-        if: runner.os == 'macOS'
-        run: node scripts/verify-mac.mjs out
-      - name: Launch the packaged Mac app and exercise native reader
+      - name: Exercise packaged Mac app and desktop UI
         if: runner.os == 'macOS'
         env:
           INTERA_MAC_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
-        run: npx playwright test tests/ui/mac-package.spec.ts
-      - name: Exercise desktop UI on Mac
-        if: runner.os == 'macOS'
-        run: npx playwright test tests/ui/desktop.spec.ts tests/ui/direct-soniox.spec.ts tests/ui/visual.spec.ts
+        run: npx playwright test
       - name: Attempt packaged Mac local-only playback diagnostic
         if: runner.os == 'macOS'
         continue-on-error: true
         env:
           INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
         run: npx tsx scripts/capture-diagnostic.ts --packaged
+      # Playwright clears test-results at startup. Write integrity evidence after it.
+      - name: Verify Mac app and installer integrity
+        if: runner.os == 'macOS'
+        run: node scripts/verify-mac.mjs out
       # One-off comparison with the actual artifact reported as damaged.
       - uses: actions/download-artifact@v4
         if: runner.os == 'macOS' && github.ref == 'refs/heads/codex/macos-reliability'

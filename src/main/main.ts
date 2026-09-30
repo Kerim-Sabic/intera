@@ -19,7 +19,7 @@ if(process.argv.includes('--test-isolated')){
 let coordinator:Coordinator;let captureHost:BrowserWindow|null=null;let compact:BrowserWindow|null=null;const views=new Set<BrowserWindow>();let quitting=false;let previous:State|undefined;
 const single=!squirrelStartup&&app.requestSingleInstanceLock();if(!single)app.quit();
 app.on('second-instance',()=>{const w=[...views][0];if(w){w.restore();w.focus();}});
-function protect(w:BrowserWindow){w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',e=>e.preventDefault());w.webContents.on('render-process-gone',()=>{if(w===captureHost)coordinator?.fail('Capture host stopped. Restart listening explicitly.');});}
+function protect(w:BrowserWindow){w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',e=>e.preventDefault());w.webContents.on('render-process-gone',()=>{if(w===captureHost)coordinator?.fail('Capture host stopped. Restart listening explicitly.');else if(views.has(w))coordinator?.fail('Reader stopped responding. Capture stopped; reopen Intera before listening again.');});}
 function windowView(small=false){
  const w=new BrowserWindow({width:small?500:1100,height:small?280:760,minWidth:small?360:680,minHeight:small?220:520,title:BRAND,alwaysOnTop:small,show:!small,icon:path.join(app.getAppPath(),'assets/brand/exports/intera.ico'),backgroundColor:'#F5F3ED',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false}});
  if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}});
@@ -31,14 +31,14 @@ async function makeCapture(){
  const captureSession=w.webContents.session;
  captureSession.setPermissionRequestHandler((wc,permission,callback)=>callback(wc===w.webContents&&coordinator.busy()&&(permission==='display-capture'||permission==='media')));
  captureSession.setPermissionCheckHandler((wc,permission)=>wc===w.webContents&&coordinator.busy()&&(permission==='display-capture'||permission==='media'));
- captureSession.setDisplayMediaRequestHandler(async(request,callback)=>{if(request.frame!==w.webContents.mainFrame||!coordinator.busy()){callback({});return;}try{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:0,height:0}});if(!coordinator.busy()||!sources[0]){callback({});return;}callback({video:sources[0],audio:'loopback'});}catch{callback({});}});
+ captureSession.setDisplayMediaRequestHandler(async(request,callback)=>{if(w.isDestroyed()||w!==captureHost||request.frame!==w.webContents.mainFrame||!coordinator.busy()){callback({});return;}try{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:0,height:0}});if(w.isDestroyed()||w!==captureHost||!coordinator.busy()||!sources[0]){callback({});return;}callback({video:sources[0],audio:'loopback'});}catch{callback({});}});
  await w.loadFile(path.join(__dirname,'host.html'));return w;
 }
 function trusted(event:Electron.IpcMainInvokeEvent|Electron.IpcMainEvent,capture=false){const w=BrowserWindow.fromWebContents(event.sender);return !!w&&(capture?w===captureHost:views.has(w))&&event.senderFrame===event.sender.mainFrame;}
 if(single)app.whenReady().then(async()=>{
  app.setName(BRAND);
  const build=JSON.parse(await readFile(path.join(__dirname,'build-info.json'),'utf8')) as {sha:string;dirty:boolean};
- app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · unsigned unless separately signed`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
+ app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · internal beta`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
  Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera',click:()=>app.showAboutPanel()}]}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
  const store=new Store();let credentialChange=false;
