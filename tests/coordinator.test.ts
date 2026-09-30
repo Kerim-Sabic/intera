@@ -32,3 +32,23 @@ it('reports missing provider translations, clears on arrival, and resets on reco
  expect(c.state.translationHealth?.stalled).toBe(false);
  c.fail('Synthetic disconnect');await c.start();expect(c.state.translationHealth).toMatchObject({sourceTokens:0,translationTokens:0,stalled:false});c.dispose();
 });
+
+const liveMock=async()=>{
+ const ws=Object.assign(new EventEmitter(),{readyState:1,bufferedAmount:0,send:vi.fn(),terminate:vi.fn(),close:vi.fn()});
+ const capture={start:vi.fn(async()=>{}),stop:vi.fn()};
+ const c=new Coordinator(capture,()=>{},{...structuredClone(defaults),funding:'personal'},()=>ws as unknown as WebSocket);c.key='synthetic-test-key';
+ await c.start();const epoch=c.state.transcript.epoch;c.format(epoch,{sampleRate:48000,channels:1});ws.emit('open');return {c,ws,capture,epoch};
+};
+it('stops capture immediately but retains delayed translation until confirmed provider completion',async()=>{
+ vi.useFakeTimers();const {c,ws,capture,epoch}=await liveMock();
+ ws.emit('message',Buffer.from(JSON.stringify({tokens:[{text:'Hello',is_final:true,language:'en',speaker:'1',translation_status:'original'}]})));
+ const done=c.stop();expect(capture.stop).toHaveBeenCalled();expect(c.state.status).toBe('stopping');
+ c.packet(epoch,0,new Int16Array([1000]).buffer);expect(c.state.packets).toBe(0);
+ vi.advanceTimersByTime(5000);expect(c.state.status).toBe('stopping');
+ ws.emit('message',Buffer.from(JSON.stringify({tokens:[{text:'Zdravo',is_final:true,language:'bs',source_language:'en',speaker:'1',translation_status:'translation'}],finished:true})));
+ await done;expect(c.state.status).toBe('stopped');expect(c.state.transcript.groups[0].translation).toBe('Zdravo');c.dispose();
+});
+it('bounds unconfirmed provider finalization and reports potentially incomplete translation',async()=>{
+ vi.useFakeTimers();const {c}=await liveMock();const done=c.stop();vi.advanceTimersByTime(15000);await done;
+ expect(c.state.status).toBe('stopped');expect(c.state.message).toContain('Latest translation may be incomplete');c.dispose();
+});
