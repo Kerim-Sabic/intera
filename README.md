@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml"><img src="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml/badge.svg?branch=codex%2Fdirect-soniox" alt="Desktop build status"></a>
+  <a href="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml"><img src="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml/badge.svg?branch=main" alt="Desktop build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-6D91BB" alt="Apache 2.0 license"></a>
 </p>
 
@@ -45,7 +45,6 @@ You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 14.2+**. Li
 ```sh
 git clone https://github.com/Kerim-Sabic/intera.git
 cd intera
-git switch codex/direct-soniox
 npm ci
 npm run demo
 ```
