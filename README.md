@@ -70,16 +70,11 @@ Both screenshots are from the running Electron app with labeled synthetic conten
 
 ## How it works
 
-```text
-Meeting playback ──► local capture host ──► Intera's trusted desktop process
-                                                 │
-                                                 ├──► Soniox real-time API
-                                                 │    (only when you start a live session)
-                                                 ▼
-                                  original + translation reader
-```
+1. With your authorization, Intera copies computer playback locally. It does not request the physical microphone in meeting-playback mode.
+2. During a personal-key live session, the trusted desktop process sends that audio to your selected Soniox region. The interface never receives your API key; the audio does not pass through Intera's billing server.
+3. The reader shows the original and translation together. Intera stores preferences and, if requested, an encrypted key on this device. It does not provide cloud transcript history.
 
-The renderer does not receive the API key. Personal-mode audio streams directly from the desktop to the selected regional Soniox endpoint; it does not pass through Intera's billing server. Intera stores preferences and, if requested, an encrypted key on this device. It does not provide cloud transcript history. See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for the implementation details.
+See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for implementation details.
 
 ## Beta status
 
