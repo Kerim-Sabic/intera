@@ -1,4 +1,4 @@
-import {app,BrowserWindow,ipcMain,session,desktopCapturer,dialog,powerMonitor,screen,Menu} from 'electron';
+import {app,BrowserWindow,ipcMain,session,desktopCapturer,dialog,powerMonitor,screen,Menu,shell} from 'electron';
 import squirrelStartup from 'electron-squirrel-startup';
 import path from 'node:path';
 import os from 'node:os';
@@ -10,6 +10,7 @@ import {commandSchema,type State} from '../shared/protocol';
 import {BRAND,preferencesSchema,regions} from '../shared/config';
 import {displayed} from '../shared/transcript';
 import {visualFixture} from '../shared/visual-fixture';
+import {providerLinks} from '../shared/provider-links';
 if(process.argv.includes('--test-isolated')){
  const label=process.argv.find(v=>v.startsWith('--test-profile='))?.slice(15);
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
@@ -39,7 +40,7 @@ if(single)app.whenReady().then(async()=>{
  app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · unsigned unless separately signed`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
  Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera',click:()=>app.showAboutPanel()}]}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
- const store=new Store();
+ const store=new Store();let credentialChange=false;
  const accounts=new AccountClient();
  ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
  coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'){const [major,minor]=process.getSystemVersion().split('.').map(Number);if(major<14||(major===14&&minor<2))throw new Error('Native capture requires macOS 14.2+');}const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
@@ -52,6 +53,7 @@ if(single)app.whenReady().then(async()=>{
   if(!trusted(e))return {ok:false,message:'Denied'};
   try{
    const c=commandSchema.parse(raw);
+   if(credentialChange&&!['stop','pause'].includes(c.type))throw new Error('Credential update in progress. Try again when it finishes.');
    switch(c.type){
     case 'start':await coordinator.start(coordinator.state.status==='paused'&&coordinator.state.demo);break;
     case 'demo':await coordinator.stop();await coordinator.clear();await coordinator.start(true);break;
@@ -64,7 +66,15 @@ if(single)app.whenReady().then(async()=>{
     case 'hold':coordinator.state.hold=coordinator.state.hold?null:structuredClone(coordinator.state.transcript);break;
     case 'preferences':if('preferences' in c){await coordinator.preferences(c.preferences,c.timing);store.save(c.preferences);}break;
     case 'cancel-pending':if(coordinator.state.effective){coordinator.state.preferences={...coordinator.state.preferences,processing:coordinator.state.effective};store.save(coordinator.state.preferences);}coordinator.state.pending=null;break;
-    case 'key':if('key' in c){if(coordinator.busy())throw new Error('Stop listening before changing credentials.');await store.setKey(c.key,c.persist);coordinator.key=c.key;coordinator.state.keyStored=true;}break;
+    case 'key':if('key' in c){if(coordinator.busy())throw new Error('Stop listening before changing credentials.');credentialChange=true;try{await store.setKey(c.key,c.persist);coordinator.key=c.key;coordinator.state.keyStored=true;}finally{credentialChange=false;}}break;
+    case 'connect-personal':{
+      if(coordinator.busy())throw new Error('Stop listening before changing the payment account.');
+      credentialChange=true;try{const preferences={...coordinator.state.preferences,funding:'personal' as const,region:c.region};
+      await store.setKey(c.key,c.persist);coordinator.key=c.key;coordinator.state.keyStored=true;
+      await coordinator.preferences(preferences,'next');store.save(preferences);
+      coordinator.state.message='Direct Soniox payment selected. Intera adds no usage fee; Soniox bills your provider account.';}finally{credentialChange=false;}break;
+    }
+    case 'provider-page':await shell.openExternal(providerLinks[c.page]);break;
     case 'forget-key':if(coordinator.busy())throw new Error('Stop first.');store.forget();coordinator.key='';coordinator.state.keyStored=false;break;
     case 'validate-key':{if(!coordinator.key)throw new Error('Add a key first.');const result=await fetch(`https://api${regions[coordinator.state.preferences.region]}.soniox.com/v1/models`,{headers:{Authorization:`Bearer ${coordinator.key}`},signal:AbortSignal.timeout(10000)});if(!result.ok)throw new Error(`Key validation failed (${result.status}).`);coordinator.state.message='Key accepted by models API. No audio was uploaded. Real-time access still requires account capability.';break;}
     case 'group':if('id' in c)coordinator.group(c.id,c.action,c.edit);break;

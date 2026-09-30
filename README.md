@@ -1,55 +1,110 @@
-# Intera
+<p align="center">
+  <img src="assets/brand/masters/wordmark.svg" alt="Intera" width="260">
+</p>
 
-English ↔ Bosnian desktop interpreter copilot. Electron + React + strict TypeScript. The human interpreter reads the original and translation and delivers the interpretation. Intera does not speak into or control the meeting.
+<h1 align="center">Read the original. Deliver the meaning.</h1>
 
-**Development build, not a clinically validated or release-certified product.** Windows loopback sample delivery is verified locally. Live Soniox transcription/translation, actual meeting combinations and physical Mac capture require the release checks in [docs/TEST-REPORT.md](docs/TEST-REPORT.md).
+<p align="center">
+  A desktop companion for human English ↔ Bosnian interpreters.<br>
+  Follow meeting speech and its translation side by side. You remain the voice in the room.
+</p>
 
-## Run
+<p align="center">
+  <a href="#try-the-demo">Try the demo</a> ·
+  <a href="docs/SONIOX-SETUP-FOR-USERS.md">Connect Soniox</a> ·
+  <a href="#beta-status">Beta status</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
 
-Requires Node 22.12+ and npm. Use the committed npm lockfile.
+<p align="center">
+  <a href="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml"><img src="https://github.com/Kerim-Sabic/intera/actions/workflows/build.yml/badge.svg?branch=main" alt="Desktop build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-6D91BB" alt="Apache 2.0 license"></a>
+</p>
+
+![Actual Intera desktop demo with synthetic English and Bosnian turns](docs/images/reader-demo-light.png)
+
+*The running Electron app with labeled synthetic conversation. No meeting audio was captured or sent for this screenshot.*
+
+> **Internal beta:** You can run the demo today. Funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release. Intera assists a human interpreter; it is not an autonomous interpreter or a clinically validated product.
+
+## Built for the interpreter's workflow
+
+When a speaker changes direction or returns later, an interpreter needs the original words, the translation, and the order in which they arrived. Intera puts them in one chronological reading view. It copies **computer playback**; it does not join, speak into, or control the meeting.
+
+- **Keep the source in sight.** Read English ↔ Bosnian source and translation together; see which words are still drafts and which have settled.
+- **Find your place again.** Follow speaker turns, search, pin a snapshot, mark a passage interpreted, correct text, or jump back to live after scrolling.
+- **Fit your reading pace.** Choose Speed, Balanced, Accuracy-first, or Custom processing; set source and translation sizes, spacing, theme, and draft visibility independently.
+- **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Export the text when finished.
+
+Intera captures all computer playback while listening, including notifications. It does not request the physical microphone in meeting-playback mode. Only share audio you are authorized to process.
+
+## Try the demo
+
+You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 14.2+**. Linux is not a release target.
+
+```sh
+git clone https://github.com/Kerim-Sabic/intera.git
+cd intera
+npm ci
+npm run demo
+```
+
+The demo uses twelve varied synthetic turns. It requires no Soniox account, payment, key, or audio capture. It is the fastest way to inspect the reader, compact mode, and settings.
+
+## Connect your own Soniox account
+
+For real authorized audio, follow the illustrated [Soniox setup guide](docs/SONIOX-SETUP-FOR-USERS.md). In the app, choose **Set up Intera → Pay Soniox directly**. The guide walks through project creation, billing review, a scoped key, the region choice, and a local playback test.
+
+In that mode, the user funds their own Soniox API account and pastes a project key into Intera's masked field. Soniox bills the user for API use; Intera adds no usage fee. The key can be kept for this session or stored with the operating system's secure storage. A key check does not verify credit or live access. Existing Intera account/subscription work is separate and remains behind service readiness gates.
+
+<details>
+<summary>Dark theme and compact reader</summary>
+
+![Actual Intera dark-theme demo with synthetic English and Bosnian turns](docs/images/reader-demo-dark.png)
+
+![Actual Intera compact demo showing the beginning of a multiline translation](docs/images/compact-demo.png)
+
+Both screenshots are from the running Electron app with labeled synthetic content.
+</details>
+
+## How it works
+
+1. With your authorization, Intera copies computer playback locally. It does not request the physical microphone in meeting-playback mode.
+2. During a personal-key live session, the trusted desktop process sends that audio to your selected Soniox region. The interface never receives your API key; the audio does not pass through Intera's billing server.
+3. The reader shows the original and translation together. Intera stores preferences and, if requested, an encrypted key on this device. It does not provide cloud transcript history.
+
+See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for implementation details.
+
+## Beta status
+
+| Area | Current evidence |
+| --- | --- |
+| Demo, settings, onboarding, reader, compact mode | Automated Electron UI checks with synthetic conversation |
+| Windows computer-playback capture | Local synthetic-tone samples arrived while minimized; Stop ended capture |
+| Windows and Mac packaging | CI builds Windows x64, Apple Silicon, and Intel Mac artifacts |
+| Live paid Soniox transcription and translation | **Not yet verified with a funded user account** |
+| Physical Mac meeting/headset capture | **Not yet verified** |
+| Public distribution | **Not ready:** builds are unsigned; signing, notarization, and release checks remain |
+
+CI build success is evidence of packaging, not evidence that live capture works on every machine. [Compatibility and release checks](docs/COMPATIBILITY.md) and the [beta evidence report](docs/MANAGED-BETA-EVIDENCE.md) record the practical limits. No public checkout or automatic overage charging is enabled.
+
+## Develop
 
 ```sh
 npm ci
-npm run dev
-npm run demo
+npm run dev                 # build and open the desktop app
 npm run typecheck
 npm run lint
 npm test
 npm run test:ui
-npm run diagnostics:capture
-npm run build
-npm run package
-npm run make
+npm run diagnostics:capture # local synthetic playback, no provider upload
+npm run make                # unsigned packages for your current platform
 ```
 
-`dev` builds and opens the real desktop app. `demo` uses deterministic synthetic provider events and is permanently labeled. `diagnostics:capture` plays a quiet four-second synthetic tone, tests actual computer playback locally, minimizes the app, then stops. It does not connect to Soniox. Close other audio applications first if you want an isolated diagnostic.
+The desktop is Electron + React + strict TypeScript. The optional managed-account server uses TypeScript, Supabase, and a separate allowance ledger; it is not needed for the demo or personal Soniox mode. Never commit keys, patient details, recordings, or real transcripts. See [CONTRIBUTING.md](CONTRIBUTING.md) for a focused first contribution.
 
-## First use
+## Project and license
 
-1. Settings → Connection: select your Soniox project’s region, save preferences, then add its personal API key. Optional validation calls the models API without uploading audio.
-2. Audio → Start local playback test. Play an authorized sound and confirm packets and meter movement, then Stop. All playback is in scope. No physical microphone is acquired.
-3. Performance: choose Speed, Balanced, Accuracy-first or Custom. Set live-draft visibility separately. Save. Preferences survive restart.
-4. Start listening and review the transmission authorization. Both transcription and translation use Soniox `stt-rt-v5` over one request.
+Intera is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. The next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. If this interpreter-first approach is useful to you, **star the repository to follow its progress**. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
 
-Speed/accuracy profiles alter real endpoint settings; they do not change model size, fidelity or packet pacing. Accuracy-first is an intention, not a measured superiority claim. Active request and staged preferences are separate. Reconnecting may leave a gap. “When I pause” applies on Resume; “Next session” remains staged across Pause/Resume.
-
-OS-protected key persistence uses Electron’s asynchronous secure storage. Session-only keys are supported. Never commit a key or put one in renderer environment variables. Local device owners can still access their own keys.
-
-## Build outputs
-
-On Windows, `npm run make` generates `out/Intera-win32-x64/Intera.exe`, a ZIP and a Squirrel Setup installer under `out/make/`. On macOS it generates `.app`, `.dmg`, and ZIP artifacts. Build on the target platform. The CI matrix configures ARM64 and Intel Mac builds, but configuration is not proof that those jobs or devices passed.
-
-Apple signing/notarization: supply `APPLE_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` from your protected build environment. Windows signing: `WINDOWS_CERT_FILE`, `WINDOWS_CERT_PASSWORD`. No signing credentials are bundled. Unsigned artifacts must not be described as signed or notarized. Do not disable OS protections.
-
-## Opt-in provider checks
-
-Use the same authorized English/Bosnian sample, raw **48 kHz stereo PCM16 little-endian**, at most 120 seconds. Do not pass a WAV container as raw PCM. Set `SONIOX_API_KEY` and `SONIOX_REGION` only in your shell’s environment.
-
-```sh
-npm run smoke -- --authorized --file=authorized.pcm
-npm run compare -- --authorized --file=authorized.pcm
-```
-
-Smoke runs Balanced once. Comparison runs three sequential repetitions per profile with 80 ms real-time pacing. It prints only technical arrival metrics, no speech or key. Paint latency and reference-based accuracy remain missing/not evaluated. No auto-selection of a winning profile.
-
-See [architecture](docs/ARCHITECTURE.md), [settings](docs/SETTINGS.md), [compatibility](docs/COMPATIBILITY.md), and [requirements/evidence](docs/TEST-REPORT.md). This build does not complete every feature in the master brief; remaining software work is explicitly listed in the report.
+Created by **Kerim Sabic** as a **Horalix** project. The code and original repository artwork are licensed under [Apache 2.0](LICENSE); attribution is recorded in [NOTICE](NOTICE). The license does not grant rights to use the Intera or Horalix names or marks to imply endorsement. Third-party packages keep their own licenses; no Soniox, Electron, Whop, or Apple affiliation is claimed.

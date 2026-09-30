@@ -4,6 +4,7 @@ import {defaults,draftVisibility,providerConfig,audioSchema,destination,preferen
 import {initialTranscript,beginEpoch,reduceTokens,responseSchema,changeGroup} from '../shared/transcript';
 import {demoEvents} from '../shared/demo';
 import type {State,Status} from '../shared/protocol';
+import {providerFailure} from '../shared/provider-errors';
 export interface Capture{start:(epoch:number,packetMs:number)=>Promise<void>;stop:()=>void}
 export class Coordinator{
  private admission:Admission|null=null; private streamKey='';
@@ -35,7 +36,7 @@ export class Coordinator{
   if(this.socket)return;
   const ws=this.connect(this.admission?.endpoint??destination(this.state.preferences.region));this.socket=ws;
   ws.on('open',()=>{if(epoch!==this.epoch||this.state.status!=='connecting'){ws.close();return;}ws.send(JSON.stringify({...providerConfig(this.state.effective!,audio,this.glossary),api_key:this.streamKey}));this.state.status='listening';this.state.networkHealth='Connected';this.state.message='Listening to computer audio — all playback';for(const b of this.queue)ws.send(b);this.queue=[];this.bytes=0;this.emit();});
-  ws.on('message',raw=>{if(epoch!==this.epoch)return;try{const event=responseSchema.parse(JSON.parse(raw.toString()));if(event.error_code){this.fail(`Soniox request failed (${event.error_code}). Check key, regional access, quota or connection; resume explicitly.`);return;}if(!['listening','stopping'].includes(this.state.status))return;this.state.transcript=reduceTokens(this.state.transcript,epoch,++this.event,event.tokens);if(this.state.transcript.groups.reduce((n,g)=>n+g.source.length+g.translation.length,0)>2_000_000){this.fail('Session memory limit reached. Export or clear before continuing.');return;}this.emit();if(event.finished&&this.state.status==='stopping')this.finishStop();}catch{this.fail('Malformed provider response. Capture stopped.');}});
+  ws.on('message',raw=>{if(epoch!==this.epoch)return;try{const event=responseSchema.parse(JSON.parse(raw.toString()));if(event.error_code){this.fail(providerFailure(event.error_type,event.error_code,this.state.preferences.funding==='personal'));return;}if(!['listening','stopping'].includes(this.state.status))return;this.state.transcript=reduceTokens(this.state.transcript,epoch,++this.event,event.tokens);if(this.state.transcript.groups.reduce((n,g)=>n+g.source.length+g.translation.length,0)>2_000_000){this.fail('Session memory limit reached. Export or clear before continuing.');return;}this.emit();if(event.finished&&this.state.status==='stopping')this.finishStop();}catch{this.fail('Malformed provider response. Capture stopped.');}});
   ws.on('error',()=>{if(epoch===this.epoch)this.fail('Secure provider connection failed. Capture stopped; resume explicitly.');});
   ws.on('close',()=>{if(epoch!==this.epoch)return;if(this.state.status==='stopping')this.finishStop();else if(['connecting','listening'].includes(this.state.status))this.fail('Provider connection closed. Gap recorded; resume explicitly.');});
  }

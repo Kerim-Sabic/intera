@@ -1,0 +1,22 @@
+name: Feature idea
+description: Suggest an improvement to the interpreter's reading or setup workflow.
+title: "[Idea] "
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What task is difficult today?
+      description: Describe the interpreter's workflow without including real conversation or patient details.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What would a good result look like?
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: What have you tried?
+      description: Optional.
