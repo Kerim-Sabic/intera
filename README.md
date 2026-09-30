@@ -40,7 +40,7 @@ Intera captures all computer playback while listening, including notifications. 
 
 ## Try the demo
 
-You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 14.2+**. Linux is not a release target.
+You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 13+**. Ventura playback support is implemented but awaits physical Mac verification. Linux is not a release target. See the [Mac installation and verification guide](docs/MACOS-VERIFICATION.md).
 
 ```sh
 git clone https://github.com/Kerim-Sabic/intera.git
@@ -84,7 +84,7 @@ See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DI
 | Windows and Mac packaging | CI builds Windows x64, Apple Silicon, and Intel Mac artifacts |
 | Live paid Soniox transcription and translation | **Not yet verified with a funded user account** |
 | Physical Mac meeting/headset capture | **Not yet verified** |
-| Public distribution | **Not ready:** builds are unsigned; signing, notarization, and release checks remain |
+| Public distribution | **Not ready:** Mac betas use ad-hoc integrity signing; Apple Developer ID signing, notarization, and physical capture verification remain |
 
 CI build success is evidence of packaging, not evidence that live capture works on every machine. [Compatibility and release checks](docs/COMPATIBILITY.md) and the [beta evidence report](docs/MANAGED-BETA-EVIDENCE.md) record the practical limits. No public checkout or automatic overage charging is enabled.
 
@@ -98,7 +98,7 @@ npm run lint
 npm test
 npm run test:ui
 npm run diagnostics:capture # local synthetic playback, no provider upload
-npm run make                # unsigned packages for your current platform
+npm run make                # beta packages; Mac ad-hoc signing is not notarization
 ```
 
 The desktop is Electron + React + strict TypeScript. The optional managed-account server uses TypeScript, Supabase, and a separate allowance ledger; it is not needed for the demo or personal Soniox mode. Never commit keys, patient details, recordings, or real transcripts. See [CONTRIBUTING.md](CONTRIBUTING.md) for a focused first contribution.

@@ -11,6 +11,7 @@ import {BRAND,preferencesSchema,regions} from '../shared/config';
 import {displayed} from '../shared/transcript';
 import {visualFixture} from '../shared/visual-fixture';
 import {providerLinks} from '../shared/provider-links';
+import {macPlaybackPath,captureFailure} from './mac-compatibility';
 if(process.argv.includes('--test-isolated')){
  const label=process.argv.find(v=>v.startsWith('--test-profile='))?.slice(15);
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
@@ -43,12 +44,12 @@ if(single)app.whenReady().then(async()=>{
  const store=new Store();let credentialChange=false;
  const accounts=new AccountClient();
  ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
- coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'){const [major,minor]=process.getSystemVersion().split('.').map(Number);if(major<14||(major===14&&minor<2))throw new Error('Native capture requires macOS 14.2+');}const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
+ coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'&&macPlaybackPath(process.getSystemVersion())==='unsupported')throw new Error('Playback capture requires macOS 13 or later.');const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
  coordinator.key=await store.key();coordinator.glossary=store.glossary();coordinator.state.keyStored=!!coordinator.key;coordinator.state.secureStorage=await store.secure();
  ipcMain.handle('snapshot',e=>{if(!trusted(e))throw new Error('Denied');return coordinator.state;});
  ipcMain.on('capture-format',(e,epoch,format)=>{if(trusted(e,true))try{coordinator.format(epoch,format);}catch{coordinator.fail('Unsupported capture format.');}});
  ipcMain.handle('capture-packet',(e,epoch,position,buffer)=>{if(trusted(e,true))coordinator.packet(epoch,position,buffer);});
- ipcMain.on('capture-error',(e,epoch,code)=>{if(trusted(e,true)&&coordinator.state.transcript.epoch===epoch)coordinator.fail('Playback capture failed ('+(['NotAllowedError','InvalidStateError','NotFoundError','NotReadableError','AbortError'].includes(code)?code:'source ended')+'). Check permissions and audio device.');});
+ ipcMain.on('capture-error',(e,epoch,code)=>{if(trusted(e,true)&&coordinator.state.transcript.epoch===epoch)coordinator.fail(captureFailure(typeof code==='string'?code:'CaptureFailure',process.platform,process.platform==='darwin'?process.getSystemVersion():''));});
  ipcMain.handle('command',async(e,raw)=>{
   if(!trusted(e))return {ok:false,message:'Denied'};
   try{
@@ -91,7 +92,7 @@ if(single)app.whenReady().then(async()=>{
  screen.on('display-removed',()=>{if(compact){const area=screen.getPrimaryDisplay().workArea;compact.setPosition(area.x+20,area.y+20);}});
  if(process.argv.includes('--test-isolated')&&process.argv.includes('--visual-fixture')){coordinator.state.transcript=visualFixture();coordinator.state.demo=true;coordinator.state.status='stopped';coordinator.state.captureHealth='Simulated';}
  windowView();if(process.argv.includes('--demo'))await coordinator.start(true);
-});
+}).catch(()=>{dialog.showErrorBox('Intera could not start','The desktop startup failed. Reinstall a verified Intera build. If this continues, report the app version and macOS version; do not include credentials or conversation data.');app.quit();});
 app.on('activate',()=>{if(!views.size&&coordinator)windowView();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 app.on('before-quit',()=>{if(!quitting){quitting=true;coordinator?.dispose();}});

@@ -1,12 +1,12 @@
 # Compatibility and native release procedure
 
-Targets: Windows 11 x64; macOS 14.2+ ARM64 and Intel on hardware supported by the selected Electron runtime. Linux is not a release target. No assumption about a user's Mac model is made.
+Targets: Windows 11 x64; macOS 13+ ARM64 and Intel on hardware supported by Electron 44.4.5. Ventura playback support is implemented, with physical verification outstanding. Linux is not a release target. See [the Mac reliability report](MACOS-VERIFICATION.md) for commands, launch-warning diagnosis and exact evidence.
 
 ## macOS
 
 The Forge bundle includes NSAudioCaptureUsageDescription, a display-capture explanation and an input-mode usage description reserved for a future selected-input adapter. Hardened-runtime entitlements include JIT and audio input. Signing and notarization require external credentials. A development run launched from a terminal may attribute capture permission to that terminal; use a generated `.app` for packaged permission testing. A dead silent stream can result from absent permission metadata: packet delivery and an audible playback sample must both be checked.
 
-Native capture is rejected below 14.2. Electron runtime support and native playback support are different claims. A user-installed virtual audio device with a headphone-preserving multi-output configuration is a possible legacy approach, but selected-input capture is **not implemented in this build**. Intera does not install drivers or alter OS audio routing.
+Native capture uses Chromium's ScreenCaptureKit path on macOS 13–14.1 and CoreAudio taps on 14.2+. Runtime support and physical capture verification are different claims. Selected-input capture is **not implemented in this build**. Intera does not install drivers or alter OS audio routing. Mac beta packages are ad-hoc signed and strictly verified; they are not Developer ID signed or notarized without external credentials.
 
 ## Manual release matrix
 

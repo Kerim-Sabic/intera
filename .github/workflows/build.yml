@@ -1,7 +1,8 @@
-name: Desktop checks and unsigned artifacts
+name: Desktop checks and beta artifacts
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     strategy:
@@ -26,10 +27,44 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run make -- --arch=${{ matrix.arch }}
-      - uses: actions/upload-artifact@v4
+      - name: Verify Mac app and installer integrity
+        if: runner.os == 'macOS'
+        run: node scripts/verify-mac.mjs out
+      - name: Launch the packaged Mac app and exercise native reader
+        if: runner.os == 'macOS'
+        env:
+          INTERA_MAC_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+        run: npx playwright test tests/ui/mac-package.spec.ts
+      - name: Exercise desktop UI on Mac
+        if: runner.os == 'macOS'
+        run: npx playwright test tests/ui/desktop.spec.ts tests/ui/direct-soniox.spec.ts tests/ui/visual.spec.ts
+      - name: Attempt packaged Mac local-only playback diagnostic
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        env:
+          INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+        run: npx tsx scripts/capture-diagnostic.ts --packaged
+      # One-off comparison with the actual artifact reported as damaged.
+      - uses: actions/download-artifact@v4
+        if: runner.os == 'macOS' && github.ref == 'refs/heads/codex/macos-reliability'
         with:
           name: Intera-unsigned-${{ matrix.os }}-${{ matrix.arch }}
+          run-id: 36706713428
+          github-token: ${{ github.token }}
+          path: baseline-mac
+      - name: Inspect original Mac artifacts without treating failure as success
+        if: runner.os == 'macOS' && github.ref == 'refs/heads/codex/macos-reliability'
+        run: node scripts/verify-mac.mjs baseline-mac --inspect-only
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'macOS'
+        with:
+          name: Intera-mac-evidence-${{ matrix.arch }}
+          path: test-results/**
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Intera-beta-${{ matrix.os }}-${{ matrix.arch }}
           path: out/make/**
           if-no-files-found: error
-  # Signing/notarization are configured in forge.config.cjs, enabled only with
-  # externally supplied credentials. CI builds do not assert capture verification.
+  # Mac beta artifacts have an ad-hoc integrity signature, not Developer ID trust.
+  # Capture evidence reports limitations; CI is not physical meeting certification.
