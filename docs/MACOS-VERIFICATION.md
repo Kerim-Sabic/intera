@@ -8,7 +8,7 @@ The reported machine is a MacBook Air M1 (2020), 8 GB, macOS 13.1. The reported 
 - [x] Research Ventura playback support against Electron 44.4.5 / Chromium 152.0.7977.130.
 - [x] Implement Ventura capture admission, actionable errors, fail-closed signing and installer integrity checks.
 - [x] Inspect the exact previously downloaded Apple Silicon artifact on macOS and compare the new artifact.
-- [ ] Execute packaged launch, reader, compact view and restart tests on ARM64 and Intel Mac runners.
+- [x] Execute packaged launch, reader, compact view and restart tests on ARM64 and Intel Mac runners.
 - [ ] Test physical M1 macOS 13.1 playback, permissions, headset, meeting, sleep and live Soniox.
 - [ ] Supply owner-controlled Developer ID credentials; notarize, staple and assess the distribution build.
 
@@ -16,7 +16,7 @@ The reported machine is a MacBook Air M1 (2020), 8 GB, macOS 13.1. The reported 
 
 **Verified defect in the old download.** On the ARM64 macOS 15.7.9 runner, the original main-run artifact (36706713428, source e655209) failed `codesign --verify --deep --strict` in both its DMG and extracted ZIP: `code has no resources but signature indicates they must be present`. The main executable still identified itself as Electron with an inherited linker ad-hoc signature, no bound Info.plist and no sealed resources. The containers themselves passed checksum/ZIP integrity. This is a reproduced bundle integrity defect consistent with the user's launch warning; the user's physical machine still needs retesting. Merely upgrading macOS does not repair that bundle.
 
-Initial corrected build [2435b5a / run 36753764288](https://github.com/Kerim-Sabic/intera/actions/runs/36753764288) passed strict code-signature checks for the packaged app, DMG-contained app and ZIP-extracted app on ARM64. Its packaged launch/reader/compact/restart test and five desktop UI tests passed. `spctl` rejected the unnotarized ad-hoc beta as expected. The local tone diagnostic received zero samples on the hosted runner and reported **FAIL / unavailable capture**; this is not live Mac audio evidence. Additional lifecycle and evidence-retention fixes follow that initial build; final source/run evidence is recorded below once complete.
+Initial corrected build [2435b5a / run 36753764288](https://github.com/Kerim-Sabic/intera/actions/runs/36753764288) passed strict code-signature checks and packaged launch on both Mac architectures. ARM64 passed its five additional UI tests. Intel exposed a CDP screenshot failure; tests now use Electron's actual rendered surface instead of that protocol. `spctl` rejected the unnotarized ad-hoc beta as expected. Local tone capture was unavailable on the hosted ARM64 runner. Final evidence follows below.
 
 **Launch and capture are separate failures.** The old Intera gate rejected playback below 14.2 only when starting capture, so it cannot explain a pre-launch “damaged” alert. The old workflow packaged installers but did not verify the finished code signature, install-container integrity, extracted bundle, or packaged launch. Packager's installed implementation defaults `osxSign.continueOnError` to true. This build explicitly sets it false.
 
@@ -27,6 +27,41 @@ Initial corrected build [2435b5a / run 36753764288](https://github.com/Kerim-Sab
 **Capture failure handling is explicit.** Ended tracks and absent playback tracks fail before an AudioContext/provider stream is created. Denied/dead Mac audio directs users to the privacy pane appropriate to their OS and requests an explicit restart. Capture never falls back to the physical microphone. A startup exception produces a visible error instead of an unhandled initialization rejection.
 
 Capture commands now invalidate earlier asynchronous work before closing old contexts. A Stop while context closure or capture acquisition is pending cannot trigger a late restart; late acquired tracks are stopped. Tests execute the actual capture-host script for these races. A reader-process crash also stops acquisition instead of leaving an invisible stream active.
+
+The premium toolbar now reserves space for native Mac traffic lights and provides a drag region with interactive controls excluded. The packaged test checks both native button positions and renderer layout in reader and compact mode. Actual Mac-rendered screenshots were inspected at wide/narrow sizes, both themes and 150% scale; all content is explicitly synthetic.
+
+## Final code verification — 2026-09-30
+
+Code branch revision: `3222872e0d8f5d08c00b6ecd58c007a2ca3ef760`. Version: `0.2.0-beta.4`. [Run 36755085707](https://github.com/Kerim-Sabic/intera/actions/runs/36755085707) completed successfully on Windows x64, macOS 15.7.9 ARM64 and macOS 15.7.9 Intel. GitHub's PR job built merge-test commit `98bd5c544b343a9a55697cbf108c46ea962d74a5`; that SHA and `dirty: false` were independently read from the downloaded ARM64 app's `dist/build-info.json`. The documentation-only evidence commit following this revision does not change app code; these installers are identified by their actual embedded SHA.
+
+| Category | Evidence / remaining limit |
+| --- | --- |
+| IMPLEMENTED | Ventura admission, explicit capture errors, cancellation races, reader-crash stop, native window-control layout, fail-closed signing, extracted-installer validation and Mac package/UI tests |
+| CONFIGURED | Mac ARM64/Intel CI, minimum OS 13.0, native usage descriptions, internal ad-hoc signing; public Developer ID credentials are not configured in these jobs |
+| VERIFIED AUTOMATED | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` (84 tests), `npm run make`; both Mac runners passed all six `npx playwright test` cases and `node scripts/verify-mac.mjs out` |
+| VERIFIED LOCAL CAPTURE | Windows 11 x64 synthetic 440 Hz diagnostic: 78 packets, 48 kHz stereo PCM16, 55 packets while minimized, stable packet count after Stop; no provider connection. This is separate from Mac evidence |
+| VERIFIED LIVE | Physical Mac meeting/headset capture and real Soniox translation: **NOT RUN** |
+| VERIFIED SANDBOX | No external payment/provider sandbox actions in this Mac reliability task; prior billing fixtures are not new sandbox proof |
+| NOT RUN | Physical M1/macOS 13.1 installation and playback; real meeting/Bluetooth/device-loss/sleep/lock/long-session Mac matrix; live provider usage and latency |
+| BLOCKED | Trusted public download requires owner-controlled Developer ID signing/notarization. Physical M1/13.1 verification requires that hardware and its owner's permission interaction |
+
+**Mac capture diagnostic result:** `npx tsx scripts/capture-diagnostic.ts --packaged` ran on both Mac runners; each reported zero packets, no audio format, and `FAIL / unavailable capture`. The step deliberately collects evidence without making the structural build fail. A green overall workflow therefore does **not** certify audio capture. **Gatekeeper result:** all three app locations on both architectures passed strict signature verification but were rejected by `spctl` as unnotarized ad-hoc builds.
+
+Downloads (GitHub login required for Actions artifacts; internal testing only):
+
+- [Apple Silicon beta.4 DMG and zipped app](https://github.com/Kerim-Sabic/intera/actions/runs/36755085707/artifacts/11115844611)
+- [Intel beta.4 DMG and zipped app](https://github.com/Kerim-Sabic/intera/actions/runs/36755085707/artifacts/11116334325)
+- [Apple Silicon raw reports and real synthetic UI screenshots](https://github.com/Kerim-Sabic/intera/actions/runs/36755085707/artifacts/11115614767)
+- [Intel raw reports and real synthetic UI screenshots](https://github.com/Kerim-Sabic/intera/actions/runs/36755085707/artifacts/11116144552)
+
+DMG SHA256 checksums:
+
+```text
+0b051a7597c15e2a84bb75bab11116b182bd24893cbce26af97c3407ceba6d70  Intera-0.2.0-beta.4-arm64.dmg
+da95e1bf5d6bba2c520a114eb8e9569c01800237b344eaaf1fd0bf49c664ca9b  Intera-0.2.0-beta.4-x64.dmg
+```
+
+The downloaded ARM64 DMG's checksum was also recomputed locally and matched. Each installer artifact includes `SHA256SUMS.txt` and `mac-integrity.json`. No public release, main merge, production deployment, security bypass, certificate purchase or Apple enrollment was performed.
 
 ## Reproducible checks
 
