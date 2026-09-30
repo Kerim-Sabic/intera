@@ -46,6 +46,7 @@ You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 14.2+**. Li
 ```sh
 git clone https://github.com/Kerim-Sabic/intera.git
 cd intera
+git switch codex/direct-soniox
 npm ci
 npm run demo
 ```
