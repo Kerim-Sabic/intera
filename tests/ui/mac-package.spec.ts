@@ -1,3 +1,4 @@
+import {desktopScreenshot} from './desktop-screenshot';
 import {_electron as electron,test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 test('Mac installed bundle launches, renders, opens compact, persists and quits',async()=>{
@@ -13,13 +14,13 @@ test('Mac installed bundle launches, renders, opens compact, persists and quits'
   expect(await win.evaluate(w=>w.getWindowButtonPosition())).toEqual({x:14,y:24});
   expect(await page.locator('.toolbar .intera-brand').evaluate(el=>el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(88);
   expect(await page.getByRole('button',{name:'Settings',exact:true}).evaluate(el=>getComputedStyle(el).getPropertyValue('-webkit-app-region'))).toBe('no-drag');
-  await page.screenshot({path:'test-results/mac/packaged-reader.png'});
+  await desktopScreenshot(app,page,{path:'test-results/mac/packaged-reader.png'});
   const next=app.waitForEvent('window');await page.getByRole('button',{name:'Open compact view'}).click();const compact=await next;
   await expect(compact.locator('.translation p')).toContainText('Prije nego završimo');
   expect(await compact.locator('.conversation').evaluate(el=>el.scrollTop)).toBe(0);
   const compactWin=await app.browserWindow(compact);expect(await compactWin.evaluate(w=>w.getWindowButtonPosition())).toEqual({x:14,y:14});
   expect(await compact.locator('.toolbar .intera-brand').evaluate(el=>el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(88);
-  await compact.screenshot({path:'test-results/mac/packaged-compact.png'});
+  await desktopScreenshot(app,compact,{path:'test-results/mac/packaged-compact.png'});
   await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,theme:'dark',translationSize:30},timing:'next'});});
   const runtime=await app.evaluate(()=>({electron:process.versions.electron,os:process.getSystemVersion(),arch:process.arch}));
   await writeFile('test-results/mac/launch.json',JSON.stringify({runtime,packaged:true,content:'12 synthetic turns, not live capture',restart:'tested in same test',physicalMac:'NOT RUN'},null,2));

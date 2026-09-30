@@ -1,3 +1,4 @@
+import {desktopScreenshot} from './desktop-screenshot';
 import {_electron as electron,test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 test('synthetic 12-turn visual matrix and compact beginning',async()=>{
@@ -17,12 +18,12 @@ test('synthetic 12-turn visual matrix and compact beginning',async()=>{
   }
   await win.evaluate(w=>{w.setSize(1280,800);w.webContents.setZoomFactor(1);});
   await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,theme:'light',sourceSize:19,translationSize:26},timing:'next'});});
-  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.screenshot({path:`dir/settings.png`.replace('dir',dir)});
-  await page.getByRole('button',{name:'Setup guide',exact:true}).click();await page.screenshot({path:`${dir}/onboarding.png`});
-  await page.getByRole('button',{name:'Account',exact:true}).click();await page.screenshot({path:`${dir}/account.png`});await page.getByRole('button',{name:'Close settings'}).click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await desktopScreenshot(app,page,{path:`dir/settings.png`.replace('dir',dir)});
+  await page.getByRole('button',{name:'Setup guide',exact:true}).click();await desktopScreenshot(app,page,{path:`${dir}/onboarding.png`});
+  await page.getByRole('button',{name:'Account',exact:true}).click();await desktopScreenshot(app,page,{path:`${dir}/account.png`});await page.getByRole('button',{name:'Close settings'}).click();
   const pending=app.waitForEvent('window');await page.getByRole('button',{name:'Open compact view'}).click();const compact=await pending;await compact.waitForLoadState();await expect(compact.locator('.translation p')).toContainText('Prije nego završimo');
   expect(await compact.locator('.conversation').evaluate(el=>el.scrollTop)).toBe(0);
-  await compact.screenshot({path:`${dir}/compact-default.png`});
+  await desktopScreenshot(app,compact,{path:`${dir}/compact-default.png`});
   await writeFile(`${dir}/matrix.json`,JSON.stringify({kind:'accelerated synthetic UI, not live provider evidence',cases:evidence},null,2));
  }finally{await app.close();}
 });
