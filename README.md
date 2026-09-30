@@ -2,17 +2,17 @@
   <img src="assets/brand/masters/wordmark.svg" alt="Intera" width="260">
 </p>
 
-<h1 align="center">A reading instrument for human interpreters</h1>
+<h1 align="center">Read the original. Deliver the meaning.</h1>
 
 <p align="center">
-  Live English ↔ Bosnian transcription and translation alongside the original speech.
-  You stay in charge of the interpretation.
+  A desktop companion for human English ↔ Bosnian interpreters.<br>
+  Follow meeting speech and its translation side by side. You remain the voice in the room.
 </p>
 
 <p align="center">
-  <a href="docs/SONIOX-SETUP-FOR-USERS.md">Set up Soniox</a> ·
   <a href="#try-the-demo">Try the demo</a> ·
-  <a href="#what-is-verified">Beta status</a> ·
+  <a href="docs/SONIOX-SETUP-FOR-USERS.md">Connect Soniox</a> ·
+  <a href="#beta-status">Beta status</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
@@ -21,21 +21,20 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-6D91BB" alt="Apache 2.0 license"></a>
 </p>
 
-> **Internal beta.** Intera is an interpreter aid, not an autonomous interpreter or a clinically validated product. The demo and local playback capture have been exercised; funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release.
-
 ![Actual Intera desktop demo with synthetic English and Bosnian turns](docs/images/reader-demo-light.png)
 
-*Actual Electron screenshot. The conversation is simulated and labeled Demo; no meeting audio was captured or sent.*
+*The running Electron app with labeled synthetic conversation. No meeting audio was captured or sent for this screenshot.*
 
-## Why Intera?
+> **Internal beta:** You can run the demo today. Funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release. Intera assists a human interpreter; it is not an autonomous interpreter or a clinically validated product.
 
-Intera keeps the original and translated text together in one chronological reading view. It copies **computer playback** rather than joining, speaking into, or controlling a meeting. The human interpreter decides what to say.
+## Built for the interpreter's workflow
 
-- **Read both sides:** English ↔ Bosnian source and translation, with live drafts and finalized text clearly distinguished.
-- **Stay oriented:** speaker turns, search, pinned snapshots, interpreted markers, manual corrections, and a jump-to-live control after scrolling back.
-- **Adjust the pace:** Speed, Balanced, Accuracy-first, and Custom processing profiles; independent source and translation text sizes, spacing, themes, and draft visibility.
-- **Keep a small view:** compact reader stays above other windows without taking focus from the meeting.
-- **Control the session:** explicit Start, Pause, Stop, local playback test, and transcript export. Demo works without an account.
+When a speaker changes direction or returns later, an interpreter needs the original words, the translation, and the order in which they arrived. Intera puts them in one chronological reading view. It copies **computer playback**; it does not join, speak into, or control the meeting.
+
+- **Keep the source in sight.** Read English ↔ Bosnian source and translation together; see which words are still drafts and which have settled.
+- **Find your place again.** Follow speaker turns, search, pin a snapshot, mark a passage interpreted, correct text, or jump back to live after scrolling.
+- **Fit your reading pace.** Choose Speed, Balanced, Accuracy-first, or Custom processing; set source and translation sizes, spacing, theme, and draft visibility independently.
+- **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Export the text when finished.
 
 Intera captures all computer playback while listening, including notifications. It does not request the physical microphone in meeting-playback mode. Only share audio you are authorized to process.
 
@@ -51,7 +50,11 @@ npm ci
 npm run demo
 ```
 
-The demo uses twelve varied synthetic turns. It requires no Soniox account, payment, key, or audio capture. For the illustrated setup of a real user-owned Soniox project, see **[Set up Intera with your own Soniox account](docs/SONIOX-SETUP-FOR-USERS.md)**. In the app, choose **Set up Intera → Pay Soniox directly**.
+The demo uses twelve varied synthetic turns. It requires no Soniox account, payment, key, or audio capture. It is the fastest way to inspect the reader, compact mode, and settings.
+
+## Connect your own Soniox account
+
+For real authorized audio, follow the illustrated [Soniox setup guide](docs/SONIOX-SETUP-FOR-USERS.md). In the app, choose **Set up Intera → Pay Soniox directly**. The guide walks through project creation, billing review, a scoped key, the region choice, and a local playback test.
 
 In that mode, the user funds their own Soniox API account and pastes a project key into Intera's masked field. Soniox bills the user for API use; Intera adds no usage fee. The key can be kept for this session or stored with the operating system's secure storage. A key check does not verify credit or live access. Existing Intera account/subscription work is separate and remains behind service readiness gates.
 
@@ -78,7 +81,7 @@ Meeting playback ──► local capture host ──► Intera's trusted desktop
 
 The renderer does not receive the API key. Personal-mode audio streams directly from the desktop to the selected regional Soniox endpoint; it does not pass through Intera's billing server. Intera stores preferences and, if requested, an encrypted key on this device. It does not provide cloud transcript history. See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for the implementation details.
 
-## What is verified
+## Beta status
 
 | Area | Current evidence |
 | --- | --- |
@@ -108,6 +111,6 @@ The desktop is Electron + React + strict TypeScript. The optional managed-accoun
 
 ## Project and license
 
-Intera is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. Feature ideas are welcome, but the next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
+Intera is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. The next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. If this interpreter-first approach is useful to you, **star the repository to follow its progress**. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
 
 Created by **Kerim Sabic** as a **Horalix** project. The code and original repository artwork are licensed under [Apache 2.0](LICENSE); attribution is recorded in [NOTICE](NOTICE). The license does not grant rights to use the Intera or Horalix names or marks to imply endorsement. Third-party packages keep their own licenses; no Soniox, Electron, Whop, or Apple affiliation is claimed.
