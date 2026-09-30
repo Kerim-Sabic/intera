@@ -10,10 +10,15 @@ test('Mac installed bundle launches, renders, opens compact, persists and quits'
   expect(await app.evaluate(({app})=>app.isPackaged)).toBe(true);
   const page=await app.firstWindow();await expect(page.locator('.turn')).toHaveCount(12);
   const win=await app.browserWindow(page);await win.evaluate(w=>w.setSize(1280,800));
+  expect(await win.evaluate(w=>w.getWindowButtonPosition())).toEqual({x:14,y:24});
+  expect(await page.locator('.toolbar .intera-brand').evaluate(el=>el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(88);
+  expect(await page.getByRole('button',{name:'Settings',exact:true}).evaluate(el=>getComputedStyle(el).getPropertyValue('-webkit-app-region'))).toBe('no-drag');
   await page.screenshot({path:'test-results/mac/packaged-reader.png'});
   const next=app.waitForEvent('window');await page.getByRole('button',{name:'Open compact view'}).click();const compact=await next;
   await expect(compact.locator('.translation p')).toContainText('Prije nego završimo');
   expect(await compact.locator('.conversation').evaluate(el=>el.scrollTop)).toBe(0);
+  const compactWin=await app.browserWindow(compact);expect(await compactWin.evaluate(w=>w.getWindowButtonPosition())).toEqual({x:14,y:14});
+  expect(await compact.locator('.toolbar .intera-brand').evaluate(el=>el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(88);
   await compact.screenshot({path:'test-results/mac/packaged-compact.png'});
   await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,theme:'dark',translationSize:30},timing:'next'});});
   const runtime=await app.evaluate(()=>({electron:process.versions.electron,os:process.getSystemVersion(),arch:process.arch}));
