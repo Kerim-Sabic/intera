@@ -12,11 +12,12 @@ const modelRoot=path.resolve('camera/upstream');
 await access(path.join(modelRoot,'approved-models.json'));
 // Validate real model hashes/licensing record before copying any model assets.
 execFileSync(python,['-c',`import sys;sys.path.insert(0,'camera');from worker import validate_models;from pathlib import Path;validate_models(Path(${JSON.stringify(modelRoot)}))`],{stdio:'inherit'});
+execFileSync(python,['-c',"import cv2,AVFoundation;assert cv2.__version__=='4.11.0','Use camera/requirements.txt; multiple OpenCV distributions can select the wrong camera'"],{stdio:'inherit'});
 execFileSync(process.execPath,['scripts/build-camera-native.mjs'],{stdio:'inherit'});
 const root=path.resolve('out/camera-bundle');
 await mkdir(root,{recursive:true});
 // Models/dependencies must be supplied by the developer; never installed at app launch.
-execFileSync(python,['-m','PyInstaller','--noconfirm','--onedir','--name','intera-camera','--distpath',path.join(root,'runtime-build'),'--workpath','out/camera-pyinstaller-work','--specpath','out','--paths','camera/upstream','--hidden-import','displayers.face_predictor','--hidden-import','model_managers.gaze_corrector_v1','--collect-all','mediapipe','--collect-all','tensorflow','--collect-all','cv2','camera/worker.py'],{stdio:'inherit'});
+execFileSync(python,['-m','PyInstaller','--noconfirm','--onedir','--name','intera-camera','--distpath',path.join(root,'runtime-build'),'--workpath','out/camera-pyinstaller-work','--specpath','out','--paths','camera/upstream','--hidden-import','displayers.face_predictor','--hidden-import','model_managers.gaze_corrector_v1','--hidden-import','AVFoundation','--collect-all','mediapipe','--collect-all','tensorflow','--collect-all','cv2','camera/worker.py'],{stdio:'inherit'});
 await cp(path.join(root,'runtime-build','intera-camera'),path.join(root,'camera-runtime'),{recursive:true});
 await cp('camera/upstream',path.join(root,'camera-runtime','upstream'),{recursive:true,filter:source=>!source.includes('__pycache__')&&!source.endsWith('poetry.lock')&&!source.endsWith('pyproject.toml')});
 await cp('out/camera-native/intera-camera.node',path.join(root,'camera-runtime','intera-camera.node'));

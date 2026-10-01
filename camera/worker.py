@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import sys
@@ -32,6 +33,14 @@ def validate_models(root):
             raise ValueError('Missing checkpoint data')
         if prefix + 'checkpoint' not in files:
             raise ValueError('Missing checkpoint metadata')
+        metadata = (root / (prefix + 'checkpoint')).read_text()
+        match = re.search(r'^model_checkpoint_path:\s*"([A-Za-z0-9_-]+)"\s*$', metadata, re.MULTILINE)
+        if not match or prefix + match[1] + '.index' not in files or not any(p.startswith(prefix + match[1] + '.data-') for p in files):
+            raise ValueError('Checkpoint refers to unreviewed files')
+    for folder in ('weights', 'models'):
+        for target in (root / folder).rglob('*'):
+            if target.is_file() and target.name != 'README.txt' and target.relative_to(root).as_posix() not in files:
+                raise ValueError('Unreviewed model asset in bundle')
     for name, expected in files.items():
         target = (root / name).resolve()
         if not target.is_relative_to(root.resolve()) or not isinstance(expected, str) or len(expected) != 64:
@@ -49,6 +58,15 @@ def settings(raw):
         raise ValueError('Invalid camera setting')
     return raw
 
+def physical_camera_index(device_ids, requested):
+    # Match OpenCV 4.11's AVFoundation unique-ID ordering, exclude our sink.
+    ordered = sorted(device_ids)
+    eligible = [index for index, uid in enumerate(ordered)
+                if uid.lower() != 'd843482c-c61b-44a2-a317-e2869f0c5d91']
+    if requested >= len(eligible):
+        raise ValueError('No selected physical camera')
+    return eligible[requested]
+
 def main():
     cap = corrector = None
     try:
@@ -62,6 +80,7 @@ def main():
         with contextlib.redirect_stdout(sys.stderr):
             sys.path.insert(0, str(ROOT / 'upstream'))
             import cv2
+            from AVFoundation import AVCaptureDevice, AVMediaTypeVideo, AVMediaTypeMuxed
             from displayers.face_predictor import create_face_predictor, EyeExtractionConfig
             from model_managers.gaze_corrector_v1 import GazeCorrector
             os.chdir(ROOT / 'upstream')
@@ -69,7 +88,15 @@ def main():
             corrector = GazeCorrector(db_path=str(DATA / 'calibration.db'))
             predictor = create_face_predictor('mediapipe')
             eye_config = EyeExtractionConfig()
-            cap = cv2.VideoCapture(initial['camera'], cv2.CAP_AVFOUNDATION)
+            if cv2.__version__ != '4.11.0':
+                raise ValueError('Camera enumeration requires the pinned OpenCV backend')
+            devices = list(AVCaptureDevice.devicesWithMediaType_(AVMediaTypeVideo)) + list(AVCaptureDevice.devicesWithMediaType_(AVMediaTypeMuxed))
+            try:
+                camera_index = physical_camera_index([str(device.uniqueID()) for device in devices], initial['camera'])
+            except ValueError:
+                emit({'type': 'error', 'code': 'camera'})
+                return
+            cap = cv2.VideoCapture(camera_index, cv2.CAP_AVFOUNDATION)
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             if not cap.isOpened():

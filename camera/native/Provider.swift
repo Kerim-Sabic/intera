@@ -117,13 +117,14 @@ final class InteraDevice: NSObject, CMIOExtensionDeviceSource {
         if sink.active, let client = sink.client, !outstanding {
             outstanding = true
             let generation = sink.generation
-            sink.stream.consumeSampleBuffer(from: client) { sample, _, _, _, error in
+            sink.stream.consumeSampleBuffer(from: client) { sample, sequence, _, _, error in
                 self.queue.async {
                     guard generation == self.sink.generation, self.sink.client?.clientID == client.clientID else { return }
                     self.outstanding = false
                     guard self.sink.active, error == nil, let sample = sample, let pixel = CMSampleBufferGetImageBuffer(sample), CVPixelBufferGetWidth(pixel) == 640, CVPixelBufferGetHeight(pixel) == 480, CVPixelBufferGetPixelFormatType(pixel) == kCVPixelFormatType_32BGRA else { return }
                     self.latest = pixel
                     self.lastInput = DispatchTime.now().uptimeNanoseconds
+                    self.sink.stream.notifyScheduledOutputChanged(CMIOExtensionScheduledOutput(sequenceNumber: sequence, hostTimeInNanoseconds: self.lastInput))
                 }
             }
         }

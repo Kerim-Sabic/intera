@@ -12,8 +12,11 @@ test('hung secure storage does not prevent reader, demo or opening message',asyn
   await app.evaluate(({app})=>app.emit('second-instance'));
   expect(await native.evaluate(w=>w.isVisible())).toBe(true);
   if(await app.evaluate(()=>process.platform)==='darwin'){
-   await native.evaluate(w=>w.close());const reopened=app.waitForEvent('window');
-   await app.evaluate(({app})=>app.emit('second-instance'));const reader=await reopened;
+   const id=await native.evaluate(w=>w.id);const reopened=app.waitForEvent('window');
+   // Keep the activation in the same Node turn: Playwright can detach its
+   // browser transport in the interval with zero windows, even on a live Mac app.
+   await app.evaluate(({app,BrowserWindow},id)=>{BrowserWindow.fromId(id)?.close();app.emit('second-instance');},id);const reader=await reopened;
+   expect(await (await app.browserWindow(reader)).evaluate(w=>w.id)).not.toBe(id);
    await expect(reader.getByRole('button',{name:'Settings',exact:true})).toBeVisible();
   }
  }finally{await app.close();}

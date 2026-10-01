@@ -3,9 +3,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from worker import validate_models, settings
+from worker import validate_models, settings, physical_camera_index
 
 class ModelBoundary(unittest.TestCase):
+    def test_virtual_camera_cannot_recursively_capture_itself(self):
+        uid = 'D843482C-C61B-44A2-A317-E2869F0C5D91'
+        self.assertEqual(physical_camera_index(['Z-physical', uid], 0), 1)
+        with self.assertRaises(ValueError): physical_camera_index([uid], 0)
     def fixture(self, root):
         files = ['models/face_landmarker.task']
         for side in ('L', 'R'):
@@ -16,6 +20,7 @@ class ModelBoundary(unittest.TestCase):
             target = root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(b'synthetic-test-only')
+            if target.name == 'checkpoint': target.write_text('model_checkpoint_path: "model"\n')
             digests[name] = hashlib.sha256(target.read_bytes()).hexdigest()
         manifest = {'redistribution_review': 'approved', 'license_reference': 'synthetic fixture only', 'files': digests}
         (root / 'approved-models.json').write_text(json.dumps(manifest))
@@ -36,6 +41,16 @@ class ModelBoundary(unittest.TestCase):
             root = Path(temp)
             manifest = self.fixture(root)
             (root / 'models/face_landmarker.task').write_bytes(b'tampered')
+            with self.assertRaises(ValueError): validate_models(root)
+
+    def test_checkpoint_cannot_reference_unreviewed_external_weights(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = self.fixture(root)
+            target = root / 'weights/warping_model/flx/12/L/checkpoint'
+            target.write_text('model_checkpoint_path: "/other/weights"\n')
+            manifest['files'][target.relative_to(root).as_posix()] = hashlib.sha256(target.read_bytes()).hexdigest()
+            (root / 'approved-models.json').write_text(json.dumps(manifest))
             with self.assertRaises(ValueError): validate_models(root)
             manifest = self.fixture(root)
             manifest['files']['../outside'] = '0' * 64

@@ -6,6 +6,7 @@ with YAML-based configuration and database-backed user settings.
 """
 
 import math
+from pathlib import Path
 import yaml
 import numpy as np
 import tensorflow as tf
@@ -158,6 +159,8 @@ class GazeModel:
         saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
         ckpt = tf.compat.v1.train.get_checkpoint_state(model_dir)
         if ckpt and ckpt.model_checkpoint_path:
+            if Path(ckpt.model_checkpoint_path).resolve().parent != Path(model_dir).resolve():
+                raise RuntimeError("Checkpoint must remain inside its reviewed model directory")
             saver.restore(sess, ckpt.model_checkpoint_path)
         else:
             raise RuntimeError("Required gaze checkpoint missing")
