@@ -7,9 +7,15 @@ const root=path.resolve('out/camera-native');
 await mkdir(path.join(root,'headers'),{recursive:true});
 // Stable N-API headers from the exact CI Node version; no node-gyp ABI guess.
 for(const name of ['node_api.h','node_api_types.h','js_native_api.h','js_native_api_types.h']){
- const response=await fetch(`https://raw.githubusercontent.com/nodejs/node/${process.version}/src/${name}`);
- if(!response.ok)throw new Error('Could not obtain pinned official Node headers.');
- await writeFile(path.join(root,'headers',name),await response.text());
+ let contents;
+ for(let attempt=0;attempt<4;attempt++){
+  try{
+   const response=await fetch(`https://raw.githubusercontent.com/nodejs/node/${process.version}/src/${name}`,{signal:AbortSignal.timeout(20000)});
+   if(!response.ok)throw new Error('Could not obtain pinned official Node headers.');
+   contents=await response.text();break;
+  }catch(error){if(attempt===3)throw error;await new Promise(resolve=>setTimeout(resolve,(attempt+1)*1000));}
+ }
+ await writeFile(path.join(root,'headers',name),contents);
 }
 execFileSync('xcrun',['swiftc','-swift-version','5','-target',`${arch}-apple-macos14.0`,'-framework','CoreMediaIO','-framework','IOKit','-framework','Security','camera/native/Provider.swift','camera/native/main.swift','-o',path.join(root,'InteraCamera')],{stdio:'inherit'});
 execFileSync('xcrun',['clang++','-std=c++17','-fobjc-arc','-arch',arch,'-mmacosx-version-min=14.0','-bundle','-undefined','dynamic_lookup','-I',path.join(root,'headers'),'-framework','Foundation','-framework','SystemExtensions','-framework','CoreMediaIO','-framework','CoreMedia','-framework','CoreVideo','-framework','CoreGraphics','-framework','ImageIO','camera/native/bridge.mm','-o',path.join(root,'intera-camera.node')],{stdio:'inherit'});

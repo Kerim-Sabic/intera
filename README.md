@@ -84,6 +84,7 @@ See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DI
 | Windows and Mac packaging | CI builds Windows x64, Apple Silicon, and Intel Mac artifacts |
 | Live paid Soniox transcription and translation | **Not yet verified with a funded user account** |
 | Physical Mac meeting/headset capture | **Not yet verified** |
+| Integrated local gaze correction and Intera Camera | Native Mac extension/bridge and in-app controls implemented; **signed activation and physical Zoom output not verified**. Model redistribution and runtime packaging remain gated. |
 | Public distribution | **Not ready:** Mac betas use ad-hoc integrity signing; Apple Developer ID signing, notarization, and physical capture verification remain |
 
 CI build success is evidence of packaging, not evidence that live capture works on every machine. [Compatibility and release checks](docs/COMPATIBILITY.md) and the [beta evidence report](docs/MANAGED-BETA-EVIDENCE.md) record the practical limits. No public checkout or automatic overage charging is enabled.
