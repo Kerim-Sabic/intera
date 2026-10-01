@@ -9,6 +9,8 @@ export class Store{
  save(p:Preferences){this.write('preferences.json',JSON.stringify(preferencesSchema.parse(p)));}
  windowOptions(){try{const data=JSON.parse(readFileSync(this.file('window-options.json'),'utf8'));if(typeof data.floating!=='boolean'||typeof data.protection!=='boolean')throw new Error('Invalid options');return {floating:data.floating as boolean,protection:data.protection as boolean};}catch{return {floating:true,protection:false};}}
  saveWindowOptions(options:{floating:boolean;protection:boolean}){this.write('window-options.json',JSON.stringify(options));}
+ captureCompatibility(){try{return JSON.parse(readFileSync(this.file('capture-compatibility.json'),'utf8')).enabled===true;}catch{return false;}}
+ saveCaptureCompatibility(enabled:boolean){this.write('capture-compatibility.json',JSON.stringify({enabled}));}
  glossary():Glossary{try{return glossarySchema.parse(JSON.parse(readFileSync(this.file('generic-glossary.json'),'utf8')));}catch{return emptyGlossary;}}
  saveGlossary(g:Glossary){this.write('generic-glossary.json',JSON.stringify(glossarySchema.parse(g)));}
  async secure(){return !process.argv.includes('--session-only')&&process.platform!=='linux' && await safeStorage.isAsyncEncryptionAvailable();}

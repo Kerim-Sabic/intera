@@ -56,6 +56,12 @@ jobs:
       - name: Verify Mac app and installer integrity
         if: runner.os == 'macOS'
         run: node scripts/verify-mac.mjs out
+      - name: Attempt documented compatibility playback path
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        env:
+          INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+        run: npx tsx scripts/capture-diagnostic.ts --packaged --mac-playback-compat
       # One-off comparison with the actual artifact reported as damaged.
       - uses: actions/download-artifact@v4
         if: runner.os == 'macOS' && github.ref == 'refs/heads/codex/macos-reliability'
