@@ -6,7 +6,7 @@ The requested delivery is one Intera application: camera selection, local correc
 
 - In-app preview panel and camera index, correction toggle, horizontal/vertical/depth offset, focal-length and reset controls.
 - Separate local worker wrapping the actual upstream MediaPipe predictor and TensorFlow gaze corrector. stdin commands and bounded JPEG replies; no network listener, recording or frame upload. The preview is limited to at most five requested frames per second, independent of the transcript state updates. This is a development preview rate, not a measured camera performance claim.
-- A single owned worker, generation fencing, startup timeout, failure state, stop when its panel closes, last window closes or Intera quits. Missing/invalid models fail **before camera access**. Missing checkpoints now fail instead of silently allowing an uninitialized model.
+- A single owned worker, generation fencing, startup timeout, failure state, stop on preview-panel closure (preview only), last-window closure or app quit. Explicit virtual-camera output can continue while Settings closes; a persistent reader/compact toolbar action stops it. Missing/invalid models fail **before camera access**. Missing checkpoints now fail instead of silently allowing an uninitialized model.
 - Renderer commands cannot choose executables, URLs, model directories or file paths. Camera index/settings are validated. Microphone capture is not requested.
 
 ## Native implementation and remaining delivery gates
@@ -19,7 +19,7 @@ Synthetic eye-tensor inference restored both actual upstream checkpoints with Te
 
 ## Source provenance and model boundary
 
-Vendored code: https://github.com/WangWilly/gaze-correction-cam at `a94ec5979b634a7bc812a879a2ebe15ca7d4f6c1`. BSD-3-Clause notice is retained in `camera/upstream/LICENSE`. Upstream dependencies are recorded in `camera/upstream/pyproject.toml`; installing them is an explicit developer action, not an app startup step. Intera's wrapper is Apache-2.0. The upstream checkpoint fallback has been changed to fail closed. Other vendored processing files are unchanged.
+Vendored code: https://github.com/WangWilly/gaze-correction-cam at `a94ec5979b634a7bc812a879a2ebe15ca7d4f6c1`. BSD-3-Clause notice is retained in `camera/upstream/LICENSE`. Upstream dependencies are recorded in `camera/upstream/pyproject.toml`; installing them is an explicit developer action, not an app startup step. Intera's wrapper is Apache-2.0. The upstream checkpoint fallback has been changed to fail closed. Checkpoint restoration is also confined to its reviewed directory. Other vendored processing files are unchanged.
 
 Code licensing does not establish model redistribution rights. The dlib/iBUG default is excluded from this integration; its commercial-use restriction is documented at https://dlib.net/face_landmark_detection.py.html. MediaPipe landmark assets and the gaze checkpoints still need documented provenance, license review and digest verification before redistribution.
 
@@ -27,7 +27,7 @@ Code licensing does not establish model redistribution rights. The dlib/iBUG def
 
 ## Development execution
 
-On an authorized macOS 14+ development machine, prepare an isolated Python 3.12 environment using the upstream dependencies. Supply reviewed assets at their documented upstream locations and the reviewed manifest. Set `INTERA_GAZE_PYTHON` to that environment's absolute Python executable path and run `npm run dev`. The renderer cannot change that path; packaged apps ignore the override. Click Settings → Eye contact → Start local camera preview. Development camera permission may be attributed to Python/the development host, not the final Intera application. No camera starts automatically.
+On an authorized macOS 14+ development machine, prepare an isolated Python 3.12 environment using `camera/requirements.txt` (one OpenCV distribution, no dlib model). Supply reviewed assets at their documented upstream locations and the reviewed manifest. Set `INTERA_GAZE_PYTHON` to that environment's absolute Python executable path and run `npm run dev`. The renderer cannot change that path; packaged apps ignore the override. Click Settings → Eye contact → Start local camera preview. Development camera permission may be attributed to Python/the development host, not the final Intera application. No camera starts automatically.
 
 Validate without a webcam or ML dependencies: `python -m unittest discover -s camera -p test_worker.py`. Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run test:ui` for the desktop checks.
 

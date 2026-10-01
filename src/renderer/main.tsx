@@ -5,7 +5,7 @@ import {detectedLanguageLabel} from '../shared/translation-health';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import * as Dialog from '@radix-ui/react-dialog';
-import {Settings,PanelTop,Play,Pause,Square,ChevronDown,X,Pin,Check,Copy,Search,ArrowDown,Download,SlidersHorizontal,FolderOpen} from 'lucide-react';
+import {Settings,PanelTop,Play,Pause,Square,ChevronDown,X,Pin,Check,Copy,Search,ArrowDown,Download,SlidersHorizontal,FolderOpen,Video} from 'lucide-react';
 import {BRAND,draftVisibility,descriptions,selectProfile,destination,preferencesSchema,type Preferences,type Processing,type Glossary} from '../shared/config';
 import {displayed,changedAfter,compactGroup,type Group} from '../shared/transcript';
 import type {State,Command} from '../shared/protocol';
@@ -46,7 +46,7 @@ function App(){
    <div className="capture-info"><span className={`status-dot ${s.status==='listening'?'on':''}`}/><div><strong>{s.status==='local-test'?'Local audio test':s.status==='listening'?'Listening':s.status==='connecting'?'Connecting':s.status==='paused'?'Paused':s.status==='error'?'Needs attention':'Ready'}</strong><span>Computer audio · all playback</span></div></div>
    {!small&&<div className="language"><span>{({two_way:'English ↔ Bosanski',bs:'English → Bosanski',en:'Bosanski → English',none:'Transcription only'})[(s.effective??p.processing).mode]}</span></div>}
    <button className="profile-button" onClick={()=>setSheet('Performance')} aria-label="Performance profile"><SlidersHorizontal size={15}/>{active}<ChevronDown size={14}/></button>
-   <div className="toolbar-actions">{running?<><button onClick={()=>void send({type:'pause'})} disabled={s.status==='stopping'} title="Pause listening"><Pause size={16}/>{!small&&'Pause'}</button><button onClick={()=>void send({type:'stop'})} aria-label="Stop listening"><Square size={15}/></button></>:<button className="primary" onClick={start}><Play size={15}/>{s.meetingReview?'New meeting':s.status==='paused'?'Resume':'Start'}</button>}
+   <div className="toolbar-actions">{s.eyeContact?.output&&<button aria-label="Stop camera output" title="Camera output on · Stop" onClick={()=>void send({type:'gaze-stop'})}><Video size={16}/>{!small&&'Camera on · Stop'}</button>}{running?<><button onClick={()=>void send({type:'pause'})} disabled={s.status==='stopping'} title="Pause listening"><Pause size={16}/>{!small&&'Pause'}</button><button onClick={()=>void send({type:'stop'})} aria-label="Stop listening"><Square size={15}/></button></>:<button className="primary" onClick={start}><Play size={15}/>{s.meetingReview?'New meeting':s.status==='paused'?'Resume':'Start'}</button>}
    {!small&&<button className="icon" title="Your meetings" aria-label="Your meetings" onClick={()=>setSheet('Meetings')}><FolderOpen size={19}/></button>}
    {!small&&<button className="icon" title="Open compact view" aria-label="Open compact view" onClick={()=>void send({type:'compact'})}><PanelTop size={19}/></button>}
    <button className="icon" title="Settings" aria-label="Settings" onClick={()=>setSheet('Reading')}><Settings size={19}/></button></div>
