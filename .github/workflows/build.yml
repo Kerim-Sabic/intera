@@ -31,6 +31,15 @@ jobs:
       - run: npm test
       - name: Verify camera model boundary without camera or ML dependencies
         run: python -m unittest discover -s camera -p test_worker.py
+      - name: Compile native camera extension and main-process bridge
+        if: runner.os == 'macOS'
+        run: npm run camera:native
+      - name: Retain native camera compile evidence
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Intera-camera-native-${{ matrix.arch }}
+          path: out/camera-native/
       - run: npm run make -- --arch=${{ matrix.arch }}
       - name: Exercise packaged Mac app and desktop UI
         if: runner.os == 'macOS'
