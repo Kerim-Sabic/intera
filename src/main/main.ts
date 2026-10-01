@@ -1,7 +1,8 @@
 import {MeetingStore} from './meetings';
 import {MacUpdates} from './updates';
 import {startupDeadline} from './startup';
-import {app,BrowserWindow,ipcMain,session,desktopCapturer,dialog,powerMonitor,screen,Menu,shell,safeStorage} from 'electron';
+import {app,BrowserWindow,ipcMain,session,desktopCapturer,dialog,powerMonitor,screen,Menu,shell,safeStorage,systemPreferences} from 'electron';
+import {captureDiagnosticSchema,CaptureStartupError,type CaptureDiagnostic} from '../shared/capture-diagnostic';
 import squirrelStartup from 'electron-squirrel-startup';
 import path from 'node:path';
 import os from 'node:os';
@@ -32,14 +33,16 @@ function windowView(small=false){
  w.setContentProtection(windowOptions.protection);if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);void w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}}).catch(()=>{startupRecord('reader-load-failed');dialog.showErrorBox('Intera reader could not open','Installed reader files could not load. Replace the app with the matching Apple Silicon or Intel beta. Your saved files have not been deleted.');});
  w.on('closed',()=>{views.delete(w);if(compact===w)compact=null;if(!views.size)void coordinator.stop();});return w;
 }
+function recordCapture(epoch:number,raw:unknown){if(!coordinator||coordinator.state.transcript.epoch!==epoch)return;const parsed=captureDiagnosticSchema.safeParse(raw);if(!parsed.success)return;let screenPermission:CaptureDiagnostic['screenPermission'];if(process.platform==='darwin')try{screenPermission=systemPreferences.getMediaAccessStatus('screen');}catch{screenPermission='unknown';}coordinator.state.captureDiagnostic={...parsed.data,screenPermission};try{writeFileSync(path.join(app.getPath('userData'),'capture-status.json'),JSON.stringify({...coordinator.state.captureDiagnostic,version:app.getVersion(),electron:process.versions.electron,os:process.platform==='darwin'?process.getSystemVersion():os.release(),arch:process.arch}),{mode:0o600});}catch{/* Diagnostic storage is optional. */}coordinator.emit();}
 async function makeCapture(){
+ const epoch=coordinator.state.transcript.epoch;recordCapture(epoch,{stage:'capture-host'});
  if(captureHost&&!captureHost.isDestroyed())return captureHost;
  const w=new BrowserWindow({show:false,width:32,height:32,webPreferences:{preload:path.join(__dirname,'capture-preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false,partition:'capture'}});captureHost=w;protect(w);
  const captureSession=w.webContents.session;
  captureSession.setPermissionRequestHandler((wc,permission,callback)=>callback(wc===w.webContents&&coordinator.busy()&&(permission==='display-capture'||permission==='media')));
  captureSession.setPermissionCheckHandler((wc,permission)=>wc===w.webContents&&coordinator.busy()&&(permission==='display-capture'||permission==='media'));
- captureSession.setDisplayMediaRequestHandler(async(request,callback)=>{if(w.isDestroyed()||w!==captureHost||request.frame!==w.webContents.mainFrame||!coordinator.busy()){callback({});return;}try{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:0,height:0}});if(w.isDestroyed()||w!==captureHost||!coordinator.busy()||!sources[0]){callback({});return;}callback({video:sources[0],audio:'loopback'});}catch{callback({});}});
- await w.loadFile(path.join(__dirname,'host.html'));return w;
+ captureSession.setDisplayMediaRequestHandler(async(request,callback)=>{if(w.isDestroyed()||w!==captureHost||request.frame!==w.webContents.mainFrame||!coordinator.busy()){callback({});return;}try{recordCapture(epoch,{stage:'source-list'});const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:0,height:0}});if(w.isDestroyed()||w!==captureHost||!coordinator.busy()){callback({});return;}if(!sources[0]){recordCapture(epoch,{stage:'source-list',code:'NoDisplaySource'});callback({});return;}callback({video:sources[0],audio:'loopback'});}catch{recordCapture(epoch,{stage:'source-list',code:'SourceListFailed'});callback({});}});
+ try{await w.loadFile(path.join(__dirname,'host.html'));}catch{recordCapture(epoch,{stage:'capture-host',code:'CaptureHostLoadFailed'});throw new CaptureStartupError(captureFailure('CaptureHostLoadFailed',process.platform));}return w;
 }
 function trusted(event:Electron.IpcMainInvokeEvent|Electron.IpcMainEvent,capture=false){const w=BrowserWindow.fromWebContents(event.sender);return !!w&&(capture?w===captureHost:views.has(w))&&event.senderFrame===event.sender.mainFrame;}
 if(single)app.whenReady().then(async()=>{
@@ -61,7 +64,8 @@ if(single)app.whenReady().then(async()=>{
  ipcMain.handle('snapshot',e=>{if(!trusted(e))throw new Error('Denied');return coordinator.state;});
  ipcMain.on('capture-format',(e,epoch,format)=>{if(trusted(e,true))try{coordinator.format(epoch,format);}catch{coordinator.fail('Unsupported capture format.');}});
  ipcMain.handle('capture-packet',(e,epoch,position,buffer)=>{if(trusted(e,true))coordinator.packet(epoch,position,buffer);});
- ipcMain.on('capture-error',(e,epoch,code)=>{if(trusted(e,true)&&coordinator.state.transcript.epoch===epoch)coordinator.fail(captureFailure(typeof code==='string'?code:'CaptureFailure',process.platform,process.platform==='darwin'?process.getSystemVersion():''));});
+ ipcMain.on('capture-diagnostic',(e,epoch,raw)=>{if(trusted(e,true)&&coordinator.busy())recordCapture(epoch,raw);});
+ ipcMain.on('capture-error',(e,epoch,code,stage)=>{if(trusted(e,true)&&coordinator.state.transcript.epoch===epoch){const previous=coordinator.state.captureDiagnostic;const raw=previous?.stage==='source-list'&&previous.code?{stage:previous.stage,code:previous.code}:{stage:stage??previous?.stage??'acquire',code:typeof code==='string'?code:'CaptureFailure'};const diagnostic=captureDiagnosticSchema.safeParse(raw);recordCapture(epoch,diagnostic.success?diagnostic.data:{stage:'acquire',code:'CaptureFailure'});const d=coordinator.state.captureDiagnostic;coordinator.fail(`${captureFailure(d?.code??'CaptureFailure',process.platform,process.platform==='darwin'?process.getSystemVersion():'')} [${d?.stage} / ${d?.code}]`);}});
  ipcMain.handle('command',async(e,raw)=>{
   if(!trusted(e))return {ok:false,message:'Denied'};
   let ownsMeetingOperation=false;

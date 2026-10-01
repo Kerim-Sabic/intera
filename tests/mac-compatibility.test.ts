@@ -9,8 +9,10 @@ describe('pinned Mac runtime capture policy',()=>{
   for(const v of ['12.7.6','unknown','13','13junk.1'])expect(macPlaybackPath(v)).toBe('unsupported');
  });
  it('points denied capture to version-appropriate privacy controls',()=>{
-  expect(captureFailure('NotAllowedError','darwin','13.1')).toContain('→ Screen Recording');
-  expect(captureFailure('DeadAudioTrack','darwin','15.0')).toContain('System Audio Recording');
+  expect(captureFailure('NotAllowedError','darwin','13.1')).toContain('Screen Recording');
+  expect(captureFailure('NotAllowedError','darwin','15.0')).toContain('System Audio Recording');
+  expect(captureFailure('DeadAudioTrack','darwin','15.0')).toContain('does not establish');
   expect(captureFailure('NoPlaybackTrack','win32')).toContain('no playback audio');
  });
+ it('does not mislabel host or active-state failures as OS permission denial',()=>{expect(captureFailure('CaptureHostLoadFailed','darwin','13.1')).toContain('app initialization');expect(captureFailure('InvalidStateError','darwin','13.1')).toContain('activation or focus');expect(captureFailure('NotReadableError','darwin','13.1')).toContain('Permission may already be granted');});
 });
