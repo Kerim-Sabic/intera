@@ -36,6 +36,31 @@ Apple Silicon playback results on macOS 15.7.9 / Electron 44.4.5: default captur
 
 Ordinary beta artifacts do not include the licensed inference runtime or an approved signed camera extension. Native compile artifacts are engineering evidence, not an installable camera release. Artifact source SHA and signing status must accompany any shared package.
 
+### Final tested runtime source
+
+Source `55e0f93fe221e2fc51f8fd7818da2c4b0db964ad`, version `0.2.0-beta.11`: https://github.com/Kerim-Sabic/intera/actions/runs/36883061022 completed successfully on Windows x64, Apple Silicon and Intel Mac. Both Mac jobs passed 118 unit tests, five Python boundary tests, native compile/load, 11 desktop UI tests and installer integrity. They retain FAILED default playback diagnostics despite the green job; that diagnostic is deliberately nonfatal so packaging is not confused with capture certification. Both explicit compatibility diagnostics passed local sample delivery.
+
+| Mac CI | Compatibility initialization | Packets / minimized | Format | Maximum normalized level |
+| --- | --- | --- | --- | --- |
+| Apple Silicon, macOS 15.7.9 | 1523 ms | 91 / 62 | 48 kHz stereo | 0.021253593752016044 |
+| Intel, macOS 15.7.9 | 2911 ms | 100 / 73 | 44.1 kHz stereo | 0.02125730783313386 |
+
+Both separate synthetic-tone players exited successfully; Stop stabilized delivery. No provider upload, headset or real meeting test. These are individual observed test results, not latency percentiles or physical M1 benchmarks. Packages use ad-hoc integrity signatures; Gatekeeper rejected them. Signed camera runtime/models are absent.
+
+Non-secret artifact inventory from that run:
+
+| Artifact | ID |
+| --- | --- |
+| Intera-beta-macos-15-arm64 | 11173715527 |
+| Intera-beta-macos-15-intel-x64 | 11172797217 |
+| Intera-beta-windows-latest-x64 | 11172716152 |
+| Intera-mac-evidence-arm64 | 11173480625 |
+| Intera-mac-evidence-x64 | 11172612333 |
+| Intera-camera-native-arm64 | 11173055069 |
+| Intera-camera-native-x64 | 11173260172 |
+
+The evidence artifacts contain actual app screenshots with synthetic conversation content, runtime/installer checks and separate playback reports. The report-only follow-up does not change these binaries or their source SHA.
+
 ## CONFIGURED / VERIFIED LIVE / VERIFIED SANDBOX
 
 No new provider, merchant, payment, identity or signing configuration was completed in this change. No real Zoom receiving-device test, physical Mac playback or funded Soniox translation was verified. Existing external configurations are not re-certified by these checks.
