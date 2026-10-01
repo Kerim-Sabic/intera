@@ -8,7 +8,7 @@ from pathlib import Path
 import signal
 import sys
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
 DATA = Path(os.environ.get('INTERA_CAMERA_DATA', ROOT / 'development-data'))
 OUT = sys.stdout
 

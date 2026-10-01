@@ -86,6 +86,8 @@ if(single)app.whenReady().then(async()=>{
     case 'delete-meeting':await meetingStore.delete(c.id);if(coordinator.state.savedMeeting===c.id)coordinator.state.savedMeeting=undefined;await refreshMeetings();break;
     case 'window-options':windowOptions={floating:c.floating,protection:c.protection};coordinator.state.windowOptions={...windowOptions};for(const w of views){w.setContentProtection(c.protection);if(w===compact)w.setAlwaysOnTop(c.floating);}store.saveWindowOptions(windowOptions);break;
     case 'gaze-check':await eyeContact.check();break;
+    case 'gaze-activate':eyeContact.activate();break;
+    case 'gaze-output':await eyeContact.output();break;
     case 'gaze-start':await eyeContact.start(c.settings);break;
     case 'gaze-configure':eyeContact.configure(c.settings);break;
     case 'gaze-stop':eyeContact.stop();break;

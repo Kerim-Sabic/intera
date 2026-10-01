@@ -3,6 +3,19 @@ import CoreMediaIO
 import CoreMedia
 import CoreVideo
 import IOKit.audio
+import Security
+
+private let cameraQueue = DispatchQueue(label: "com.intera.camera.frames")
+private func trustedProducer(_ client: CMIOExtensionClient) -> Bool {
+    guard client.signingID == "com.intera.desktop", let team = Bundle.main.object(forInfoDictionaryKey: "InteraTeamIdentifier") as? String, team.range(of: "^[A-Z0-9]{10}$", options: .regularExpression) != nil else { return false }
+    var code: SecCode?
+    let attributes = [kSecGuestAttributePid as String: NSNumber(value: client.pid)] as CFDictionary
+    guard SecCodeCopyGuestWithAttributes(nil, attributes, [], &code) == errSecSuccess, let code = code else { return false }
+    var requirement: SecRequirement?
+    let rule = "anchor apple generic and identifier \"com.intera.desktop\" and certificate leaf[subject.OU] = \"\(team)\""
+    guard SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess, let requirement = requirement else { return false }
+    return SecCodeCheckValidity(code, [], requirement) == errSecSuccess
+}
 
 // The sink accepts Intera frames; meeting apps capture the separate source.
 // No network endpoints or persisted camera buffers are used by this extension.
@@ -12,7 +25,9 @@ final class InteraStream: NSObject, CMIOExtensionStreamSource {
     let input: Bool
     weak var owner: InteraDevice?
     var client: CMIOExtensionClient?
-    var active = false
+    private var starts = 0
+    var generation = 0
+    var active: Bool { get { starts > 0 } set { starts = newValue ? max(1, starts) : 0 } }
     var availableProperties: Set<CMIOExtensionProperty> {
         input ? [.streamActiveFormatIndex, .streamFrameDuration, .streamSinkBufferQueueSize, .streamSinkBuffersRequiredForStartup, .streamSinkBufferUnderrunCount, .streamSinkEndOfData] : [.streamActiveFormatIndex, .streamFrameDuration]
     }
@@ -40,20 +55,20 @@ final class InteraStream: NSObject, CMIOExtensionStreamSource {
     func authorizedToStartStream(for client: CMIOExtensionClient) -> Bool {
         if input {
             // Authorization belongs to the system-verified signing identifier.
-            guard client.signingID == "com.intera.desktop", self.client == nil || self.client?.clientID == client.clientID else { return false }
+            guard trustedProducer(client), self.client == nil || self.client?.clientID == client.clientID else { return false }
             self.client = client
         }
         return true
     }
-    func startStream() throws { active = true; owner?.start() }
-    func stopStream() throws { active = false; if input { client = nil; owner?.clear() }; owner?.stopIfIdle() }
+    func startStream() throws { starts += 1; generation += 1; owner?.start() }
+    func stopStream() throws { starts = max(0, starts - 1); generation += 1; if input && !active { client = nil; owner?.clear() }; owner?.stopIfIdle() }
 }
 
 final class InteraDevice: NSObject, CMIOExtensionDeviceSource {
     var device: CMIOExtensionDevice!
     var source: InteraStream!
     var sink: InteraStream!
-    private let queue = DispatchQueue(label: "com.intera.camera.frames")
+    private let queue = cameraQueue
     private var timer: DispatchSourceTimer?
     private var outstanding = false
     private var latest: CVPixelBuffer?
@@ -85,7 +100,7 @@ final class InteraDevice: NSObject, CMIOExtensionDeviceSource {
         return result
     }
     func setDeviceProperties(_ properties: CMIOExtensionDeviceProperties) throws {}
-    func clear() { queue.async { self.latest = nil; self.lastInput = 0 } }
+    func clear() { queue.async { self.latest = nil; self.lastInput = 0; self.outstanding = false } }
     func start() {
         queue.async {
             guard self.timer == nil else { return }
@@ -101,8 +116,10 @@ final class InteraDevice: NSObject, CMIOExtensionDeviceSource {
     private func tick() {
         if sink.active, let client = sink.client, !outstanding {
             outstanding = true
+            let generation = sink.generation
             sink.stream.consumeSampleBuffer(from: client) { sample, _, _, _, error in
                 self.queue.async {
+                    guard generation == self.sink.generation, self.sink.client?.clientID == client.clientID else { return }
                     self.outstanding = false
                     guard self.sink.active, error == nil, let sample = sample, let pixel = CMSampleBufferGetImageBuffer(sample), CVPixelBufferGetWidth(pixel) == 640, CVPixelBufferGetHeight(pixel) == 480, CVPixelBufferGetPixelFormatType(pixel) == kCVPixelFormatType_32BGRA else { return }
                     self.latest = pixel
@@ -126,7 +143,7 @@ final class InteraProvider: NSObject, CMIOExtensionProviderSource {
     var provider: CMIOExtensionProvider!
     private let camera = InteraDevice()
     var availableProperties: Set<CMIOExtensionProperty> { [.providerManufacturer] }
-    override init() { super.init(); provider = CMIOExtensionProvider(source: self, clientQueue: nil); try! provider.addDevice(camera.device) }
+    override init() { super.init(); provider = CMIOExtensionProvider(source: self, clientQueue: cameraQueue); try! provider.addDevice(camera.device) }
     func connect(to client: CMIOExtensionClient) throws {}
     func disconnect(from client: CMIOExtensionClient) { if camera.sink.client?.clientID == client.clientID { camera.sink.client = nil; camera.sink.active = false; camera.clear(); camera.stopIfIdle() } }
     func providerProperties(forProperties properties: Set<CMIOExtensionProperty>) throws -> CMIOExtensionProviderProperties { let result = CMIOExtensionProviderProperties(dictionary: [:]); result.manufacturer = "Intera"; return result }

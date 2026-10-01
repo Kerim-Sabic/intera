@@ -1,7 +1,7 @@
 {
   "name": "intera",
   "productName": "Intera",
-  "version": "0.2.0-beta.10",
+  "version": "0.2.0-beta.11",
   "private": true,
   "description": "User-controlled English / Bosnian desktop interpreter copilot",
   "author": "Intera contributors",
@@ -25,7 +25,8 @@
     "server:catalog": "tsx scripts/whop-catalog-check.ts",
     "brand:export": "node scripts/brand-export.mjs",
     "managed:check": "tsx scripts/managed-check.ts",
-    "camera:native": "node scripts/build-camera-native.mjs"
+    "camera:native": "node scripts/build-camera-native.mjs",
+    "camera:prepare": "node scripts/prepare-camera-bundle.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",

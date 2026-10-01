@@ -11,7 +11,8 @@ for(const name of ['node_api.h','node_api_types.h','js_native_api.h','js_native_
  if(!response.ok)throw new Error('Could not obtain pinned official Node headers.');
  await writeFile(path.join(root,'headers',name),await response.text());
 }
-execFileSync('xcrun',['swiftc','-swift-version','5','-target',`${arch}-apple-macos14.0`,'-framework','CoreMediaIO','-framework','IOKit','camera/native/Provider.swift','camera/native/main.swift','-o',path.join(root,'InteraCamera')],{stdio:'inherit'});
+execFileSync('xcrun',['swiftc','-swift-version','5','-target',`${arch}-apple-macos14.0`,'-framework','CoreMediaIO','-framework','IOKit','-framework','Security','camera/native/Provider.swift','camera/native/main.swift','-o',path.join(root,'InteraCamera')],{stdio:'inherit'});
 execFileSync('xcrun',['clang++','-std=c++17','-fobjc-arc','-arch',arch,'-mmacosx-version-min=14.0','-bundle','-undefined','dynamic_lookup','-I',path.join(root,'headers'),'-framework','Foundation','-framework','SystemExtensions','-framework','CoreMediaIO','-framework','CoreMedia','-framework','CoreVideo','-framework','CoreGraphics','-framework','ImageIO','camera/native/bridge.mm','-o',path.join(root,'intera-camera.node')],{stdio:'inherit'});
 await writeFile(path.join(root,'build-evidence.json'),JSON.stringify({arch,minimumMacOS:'14.0',nodeHeaders:process.version,sdk:execFileSync('xcrun',['--show-sdk-version'],{encoding:'utf8'}).trim(),status:'COMPILED ONLY',signed:false,activated:false,zoomVerified:false,modelsBundled:false},null,2));
+execFileSync(process.execPath,['-e',`const camera=require(${JSON.stringify(path.join(root,'intera-camera.node'))});if(camera.state()!=='inactive'||camera.submit(Buffer.alloc(0))!==false||camera.stop()!==true)throw new Error('Native bridge smoke check failed');console.log('N-API bridge loaded; no activation performed');`],{stdio:'inherit'});
 console.log('Native camera code compiled. No signature, activation, model approval or Zoom verification implied.');

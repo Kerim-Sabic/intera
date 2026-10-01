@@ -9,11 +9,13 @@ The requested delivery is one Intera application: camera selection, local correc
 - A single owned worker, generation fencing, startup timeout, failure state, stop when its panel closes, last window closes or Intera quits. Missing/invalid models fail **before camera access**. Missing checkpoints now fail instead of silently allowing an uninitialized model.
 - Renderer commands cannot choose executables, URLs, model directories or file paths. Camera index/settings are validated. Microphone capture is not requested.
 
-## Not delivered or verified
+## Native implementation and remaining delivery gates
 
-**This beta does not supply a working Zoom virtual camera.** No Core Media I/O extension, signed activation host, approved packaged Python runtime or reviewed weight bundle has been supplied. The installed application keeps camera preview unavailable. The public source inspected at the pinned revision contains a Python preview pipeline, not the native extension advertised by the separately distributed app.
+Native source is now present in `camera/native/Provider.swift` and `bridge.mm`. It publishes an Intera Camera source and a separate input sink. The sink checks the producer's signing identifier and Apple team; source output goes black within one second of input loss. The trusted Electron main-process bridge handles explicit owner activation, sink start, bounded JPEG-to-BGRA submission and stop. Native code compiled on the Apple Silicon Mac CI runner; activation and real Zoom output are NOT verified.
 
-Live inference, camera permission prompts, performance on M1/8 GB, latency, visual quality, Zoom selection and end-to-end output are NOT RUN. Windows is unavailable for this optional feature. Native Mac verification cannot be done on this Windows workstation. No approval, signature or redistribution license has been invented.
+The installed beta still does not deliver a working gaze camera. A reviewed model bundle, packaged inference runtime, real Developer ID/provisioning/notarization, macOS owner activation and a physical Zoom test are missing. The native bridge loads only when the installed app, extension and addon signatures verify and their real Apple team IDs match. No companion installer or security bypass is used.
+
+Synthetic eye-tensor inference restored both actual upstream checkpoints with TensorFlow 2.19 on Windows CPU. Both output tensors had the expected shape and finite values and changed with target angles. This is not face/camera quality evidence or an M1 benchmark. Details: GAZE-INFERENCE-EVIDENCE.json. Actual face landmarks, clipping, camera orientation, continuity cameras, permission prompts, M1/8 GB performance and real meeting output remain NOT RUN.
 
 ## Source provenance and model boundary
 
@@ -29,8 +31,16 @@ On an authorized macOS 14+ development machine, prepare an isolated Python 3.12 
 
 Validate without a webcam or ML dependencies: `python -m unittest discover -s camera -p test_worker.py`. Run `npm run typecheck`, `npm run lint`, `npm test`, and `npm run test:ui` for the desktop checks.
 
-## Required native completion
+## Build and owner activation
 
-Build an Intera-owned Core Media I/O camera extension and activation host following Apple's camera-extension documentation: https://developer.apple.com/documentation/coremediaio/creating-a-camera-extension-with-core-media-i-o. Transport timestamped video frames through a bounded local native interface; the JSON/JPEG development preview is not the production virtual-camera transport. Establish matching team identity, app group, entitlements, provisioning, Developer ID signing and notarization for host and extension. Bundle the reviewed inference runtime outside ASAR, sign it and test framework dependencies on both native architectures. Handle owner activation/permission and deactivate output on stop, worker failure, quit and camera loss. Never export stale frames indefinitely or silently show an uncorrected feed as corrected.
+`npm run camera:native` compiles the camera extension and N-API bridge using the installed Mac SDK. It does not sign or activate them. CI retains those binaries separately from the ordinary unsigned Intera beta. They are not installable camera releases.
 
-Test physical M1 and supported Intel Macs: camera denied/granted, preview/calibration, concurrent transcription, sleep/wake, slow inference, process crash, camera unplug, app quit, extension activation/update, actual Zoom output received on a second device, and sustained resource use. Keep the feature gated until these steps have evidence. This is the remaining implementation scope, not a completed extension awaiting only a checkbox.
+`npm run camera:prepare` requires a real Apple team ID, Developer ID identity, dedicated Python environment (including PyInstaller) and reviewed model manifest. It prepares the runtime, extension bundle, app-group entitlements and metadata. Set `INTERA_CAMERA_BUNDLE` to the resulting `out/camera-bundle` directory for `npm run make`. Forge copies the extension to `Contents/Library/SystemExtensions` before signing and uses separate host/extension entitlements. Models are validated before preparation, and preparation rejects a mismatched team or architecture. Never commit model files, provisioning profiles or signing credentials. Notarization uses the existing protected Apple build settings.
+
+The app remains a macOS 13+ interpreter; eye contact requires macOS 14+. After the signed application is installed in Applications, the owner explicitly clicks Enable Intera Camera in macOS, reviews Apple's extension approval, starts preview and clicks Use Intera Camera in Zoom. Select Intera Camera from Zoom's camera menu and verify it from another device. Existing unsigned betas keep those actions disabled.
+
+The development transport still uses bounded JPEG frames requested at five fps; it is not a demonstrated smooth production video pipeline. The extension sends at 30 fps by repeating fresh input and switches to black on stale input. Smoothness/latency and a faster transport need actual measurement before public release. No audio is obtained from the webcam.
+
+## Remaining physical validation
+
+Test real M1 and supported Intel Macs: camera denied/granted, corrected preview/calibration, orientation, no-face/partially visible eyes, camera selection including virtual-camera recursion, concurrent transcription, sleep/wake, slow inference, worker crash, unplug, app quit, extension activation/update/replacement, two camera consumers, and Zoom output received on a second device. Measure sustained memory/CPU, frame latency and real interpretation capture. Compile/synthetic tests cannot satisfy these checks. Keep the integrated camera distribution gated until model redistribution and these delivery checks have evidence.
