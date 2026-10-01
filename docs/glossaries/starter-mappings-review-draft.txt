@@ -1,0 +1,8 @@
+blood pressure = krvni pritisak
+krvni pritisak = blood pressure
+blood test = analiza krvi
+analiza krvi = blood test
+allergy = alergija
+alergija = allergy
+health insurance = zdravstveno osiguranje
+zdravstveno osiguranje = health insurance

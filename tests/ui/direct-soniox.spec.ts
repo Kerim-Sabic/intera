@@ -1,3 +1,4 @@
+import {desktopScreenshot} from './desktop-screenshot';
 import {_electron as electron,test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 test('direct payment onboarding works without Intera auth and keeps session-only keys out of snapshots and restart',async()=>{
@@ -10,15 +11,15 @@ test('direct payment onboarding works without Intera auth and keeps session-only
   const setup=page.getByRole('region',{name:'Pay Soniox directly',exact:true});
   await expect(setup.getByText('Intera adds no usage fee.',{exact:true})).toBeVisible();
   await expect(setup.getByRole('button',{name:'Open Soniox API Console'})).toBeVisible();
-  await page.screenshot({path:`${dir}/onboarding-light.png`});
+  await desktopScreenshot(app,page,{path:`${dir}/onboarding-light.png`});
   await setup.getByRole('button',{name:'I have a project'}).click();
   await expect(setup.getByRole('heading',{name:'2. Check payment and set a limit'})).toBeVisible();
   await setup.getByRole('button',{name:'I reviewed billing'}).click();
   await expect(setup.getByText('Speech-to-text, real-time',{exact:true})).toBeVisible();
-  await page.screenshot({path:`${dir}/create-key-light.png`});
+  await desktopScreenshot(app,page,{path:`${dir}/create-key-light.png`});
   await setup.getByRole('button',{name:'I copied my key'}).click();
   await setup.getByLabel('Your Soniox API key',{exact:true}).scrollIntoViewIfNeeded();
-  await page.screenshot({path:`${dir}/connect-key-light.png`});
+  await desktopScreenshot(app,page,{path:`${dir}/connect-key-light.png`});
   await setup.getByLabel('Soniox project region').selectOption('eu');
   const remembered=setup.getByLabel('Remember on this device using secure storage');if(await remembered.isEnabled())await remembered.uncheck();
   await setup.getByLabel('Your Soniox API key',{exact:true}).fill('synthetic-direct-test-key');
@@ -27,10 +28,10 @@ test('direct payment onboarding works without Intera auth and keeps session-only
   await expect(setup.getByLabel('Your Soniox API key',{exact:true})).toHaveValue('');
   let snapshot=await page.evaluate(()=>window.intera.snapshot());expect(snapshot.preferences).toMatchObject({funding:'personal',region:'eu'});expect(snapshot.keyStored).toBe(true);expect(JSON.stringify(snapshot)).not.toContain('synthetic-direct-test-key');
   expect(await page.evaluate(()=>window.intera.billing({type:'status'}))).toEqual({ok:true,view:{configured:false}});
-  await setup.getByRole('button',{name:'Check key without audio'}).scrollIntoViewIfNeeded();await page.screenshot({path:`${dir}/connected-key.png`});
+  await setup.getByRole('button',{name:'Check key without audio'}).scrollIntoViewIfNeeded();await desktopScreenshot(app,page,{path:`${dir}/connected-key.png`});
   await setup.getByRole('button',{name:'Go to playback test'}).click();
   await expect(page.getByRole('heading',{name:'Listen to meeting playback'})).toBeVisible();
-  await page.getByRole('button',{name:'4. Ready',exact:true}).click();await expect(page.getByText('Soniox bills your API use directly.',{exact:false})).toBeVisible();await page.screenshot({path:`${dir}/ready.png`});
+  await page.getByRole('button',{name:'4. Ready',exact:true}).click();await expect(page.getByText('Soniox bills your API use directly.',{exact:false})).toBeVisible();await desktopScreenshot(app,page,{path:`${dir}/ready.png`});
   await page.getByRole('button',{name:'Close settings'}).click();await page.getByRole('button',{name:'Start',exact:true}).click();
   await expect(page.getByText('Intera adds no usage fee and does not use your subscription allowance.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Billed by Soniox',exact:true}).click();

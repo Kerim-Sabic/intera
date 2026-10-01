@@ -34,13 +34,13 @@ When a speaker changes direction or returns later, an interpreter needs the orig
 - **Keep the source in sight.** Read English ↔ Bosnian source and translation together; see which words are still drafts and which have settled.
 - **Find your place again.** Follow speaker turns, search, pin a snapshot, mark a passage interpreted, correct text, or jump back to live after scrolling.
 - **Fit your reading pace.** Choose Speed, Balanced, Accuracy-first, or Custom processing; set source and translation sizes, spacing, theme, and draft visibility independently.
-- **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Export the text when finished.
+- **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Save authorized meeting text locally, start a fresh meeting, or export the text when finished.
 
 Intera captures all computer playback while listening, including notifications. It does not request the physical microphone in meeting-playback mode. Only share audio you are authorized to process.
 
 ## Try the demo
 
-You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 14.2+**. Linux is not a release target.
+You need **Node.js 22.12+** and npm on **Windows 11 x64** or **macOS 13+**. Ventura playback support is implemented but awaits physical Mac verification. Linux is not a release target. See the [Mac installation and verification guide](docs/MACOS-VERIFICATION.md).
 
 ```sh
 git clone https://github.com/Kerim-Sabic/intera.git
@@ -71,7 +71,7 @@ Both screenshots are from the running Electron app with labeled synthetic conten
 
 1. With your authorization, Intera copies computer playback locally. It does not request the physical microphone in meeting-playback mode.
 2. During a personal-key live session, the trusted desktop process sends that audio to your selected Soniox region. The interface never receives your API key; the audio does not pass through Intera's billing server.
-3. The reader shows the original and translation together. Intera stores preferences and, if requested, an encrypted key on this device. It does not provide cloud transcript history.
+3. The reader shows the original and translation together. Intera stores preferences and, if requested, an encrypted key on this device. You can explicitly save meeting text and corrections in an encrypted local library; there is no cloud transcript history.
 
 See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for implementation details.
 
@@ -84,7 +84,7 @@ See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DI
 | Windows and Mac packaging | CI builds Windows x64, Apple Silicon, and Intel Mac artifacts |
 | Live paid Soniox transcription and translation | **Not yet verified with a funded user account** |
 | Physical Mac meeting/headset capture | **Not yet verified** |
-| Public distribution | **Not ready:** builds are unsigned; signing, notarization, and release checks remain |
+| Public distribution | **Not ready:** Mac betas use ad-hoc integrity signing; Apple Developer ID signing, notarization, and physical capture verification remain |
 
 CI build success is evidence of packaging, not evidence that live capture works on every machine. [Compatibility and release checks](docs/COMPATIBILITY.md) and the [beta evidence report](docs/MANAGED-BETA-EVIDENCE.md) record the practical limits. No public checkout or automatic overage charging is enabled.
 
@@ -98,7 +98,7 @@ npm run lint
 npm test
 npm run test:ui
 npm run diagnostics:capture # local synthetic playback, no provider upload
-npm run make                # unsigned packages for your current platform
+npm run make                # beta packages; Mac ad-hoc signing is not notarization
 ```
 
 The desktop is Electron + React + strict TypeScript. The optional managed-account server uses TypeScript, Supabase, and a separate allowance ledger; it is not needed for the demo or personal Soniox mode. Never commit keys, patient details, recordings, or real transcripts. See [CONTRIBUTING.md](CONTRIBUTING.md) for a focused first contribution.
@@ -108,3 +108,9 @@ The desktop is Electron + React + strict TypeScript. The optional managed-accoun
 Intera is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. The next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. If this interpreter-first approach is useful to you, **star the repository to follow its progress**. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
 
 Created by **Kerim Sabic** as a **Horalix** project. The code and original repository artwork are licensed under [Apache 2.0](LICENSE); attribution is recorded in [NOTICE](NOTICE). The license does not grant rights to use the Intera or Horalix names or marks to imply endorsement. Third-party packages keep their own licenses; no Soniox, Electron, Whop, or Apple affiliation is claimed.
+
+### Meeting workspace and supplied terminology
+
+The follow-up beta includes a searchable owner-supplied medical/insurance glossary with context notes and explicit mappings in both directions, manual encrypted meeting saving/review, and floating-reader controls. Select relevant mappings before listening rather than uploading the entire workbook. [Setup and verification details](docs/MEETINGS-AND-MAC-UPDATES.md).
+
+Mac automatic updating is implemented but gated until a genuine signed/notarized release channel is available. Capture protection is best-effort: modern Mac screen sharing can still include protected windows. Share a specific meeting window and verify the audience preview. These features are not proof that the earlier live translation issue or physical-Mac acceptance tests are resolved.

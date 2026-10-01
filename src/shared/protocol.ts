@@ -1,12 +1,19 @@
+import type {CaptureDiagnostic} from './capture-diagnostic';
+import type {MeetingSummary} from './meetings';
+import type {UpdateView} from './updates';
+import type {TranslationHealth} from './translation-health';
 import { z } from 'zod';
-import {preferencesSchema,glossarySchema,regionSchema,type Preferences,type Processing,type AudioFormat} from './config';
+import {preferencesSchema,glossarySchema,regionSchema,type Preferences,type Processing,type AudioFormat,type Glossary} from './config';
 import type {Transcript} from './transcript';
 import type {BillingCommand,BillingReply} from './billing';
 export type Status='idle'|'connecting'|'listening'|'paused'|'stopping'|'stopped'|'error'|'local-test';
-export type State={managed?:{reservedMs:number;provisionalMs:number;boundaryReached?:boolean;finalizing:boolean;region:Preferences['region']};sequence:number;status:Status;demo:boolean;preferences:Preferences;effective:Processing|null;pending:{config:Processing;timing:'pause'|'next'}|null;transcript:Transcript;keyStored:boolean;secureStorage:boolean;message:string;meter:number;packets:number;audio:AudioFormat|null;names:Record<string,string>;hold:Transcript|null;platform:string;captureHealth:string;networkHealth:string};
+export type State={captureDiagnostic?:CaptureDiagnostic;storageLoading?:boolean;meetings?:MeetingSummary[];savedMeeting?:string;meetingReview?:boolean;meetingStorageError?:string;windowOptions?:{floating:boolean;protection:boolean};updates?:UpdateView;glossary?:Glossary;translationHealth?:TranslationHealth;managed?:{reservedMs:number;provisionalMs:number;boundaryReached?:boolean;finalizing:boolean;region:Preferences['region']};sequence:number;status:Status;demo:boolean;preferences:Preferences;effective:Processing|null;pending:{config:Processing;timing:'pause'|'next'}|null;transcript:Transcript;keyStored:boolean;secureStorage:boolean;message:string;meter:number;packets:number;audio:AudioFormat|null;names:Record<string,string>;hold:Transcript|null;platform:string;captureHealth:string;networkHealth:string};
 
 export const commandSchema=z.discriminatedUnion('type',[
-  z.object({type:z.enum(['start','demo','pause','stop','clear','finish','compact','hold','local-test','cancel-pending','validate-key','forget-key','import-settings','export-settings'])}).strict(),
+  z.object({type:z.enum(['start','demo','pause','stop','clear','finish','compact','hold','local-test','cancel-pending','validate-key','forget-key','import-settings','export-settings','new-meeting','check-updates','install-update'])}).strict(),
+  z.object({type:z.literal('save-meeting'),title:z.string().trim().min(1).max(120)}).strict(),
+  z.object({type:z.enum(['open-meeting','delete-meeting']),id:z.uuid()}).strict(),
+  z.object({type:z.literal('window-options'),floating:z.boolean(),protection:z.boolean()}).strict(),
   z.object({type:z.literal('preferences'),preferences:preferencesSchema,timing:z.enum(['now','pause','next'])}).strict(),
   z.object({type:z.literal('key'),key:z.string().trim().min(1).max(512),persist:z.boolean()}).strict(),
   z.object({type:z.literal('connect-personal'),key:z.string().trim().min(1).max(512),persist:z.boolean(),region:regionSchema}).strict(),
