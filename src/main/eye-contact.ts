@@ -4,7 +4,7 @@ import {access} from 'node:fs/promises';
 import {spawn,type ChildProcessWithoutNullStreams} from 'node:child_process';
 import {gazeSupported,gazeEventSchema,type EyeContactView,type GazeSettings} from '../shared/eye-contact';
 export class EyeContact{
- view:EyeContactView={supported:gazeSupported(process.platform,process.platform==='darwin'?process.getSystemVersion():''),installed:false,checked:false,status:'off',message:'Checking integrated camera readiness.'};
+ view:EyeContactView={supported:gazeSupported(process.platform,process.platform==='darwin'&&typeof process.getSystemVersion==='function'?process.getSystemVersion():''),installed:false,checked:false,status:'off',message:'Checking integrated camera readiness.'};
  private child:ChildProcessWithoutNullStreams|undefined;
  private timer:ReturnType<typeof setInterval>|undefined;
  private deadline:ReturnType<typeof setTimeout>|undefined;
