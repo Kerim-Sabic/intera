@@ -29,6 +29,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Verify camera model boundary without camera or ML dependencies
+        run: python -m unittest discover -s camera -p test_worker.py
       - run: npm run make -- --arch=${{ matrix.arch }}
       - name: Exercise packaged Mac app and desktop UI
         if: runner.os == 'macOS'

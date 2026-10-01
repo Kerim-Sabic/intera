@@ -12,6 +12,7 @@ async function main(){
   await page.waitForFunction(async()=>!(await window.intera.snapshot()).storageLoading,{},{timeout:15000});
   await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Audio',exact:true}).click();
   await page.getByRole('button',{name:'Start local playback test'}).click();
+  await page.waitForFunction(async()=>{const state=await window.intera.snapshot();return !!state.audio||state.status==='error';},{},{timeout:35000});
   // A separate native player exercises Mac system playback without depending on capture of Intera itself.
   if(process.platform==='darwin'){
    toneDirectory=await mkdtemp(path.join(tmpdir(),'intera-local-tone-'));const rate=48000,seconds=4,frames=rate*seconds;const wav=Buffer.alloc(44+frames*4);
