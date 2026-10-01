@@ -1,10 +1,12 @@
 import {MeetingStore} from './meetings';
 import {MacUpdates} from './updates';
+import {startupDeadline} from './startup';
 import {app,BrowserWindow,ipcMain,session,desktopCapturer,dialog,powerMonitor,screen,Menu,shell,safeStorage} from 'electron';
 import squirrelStartup from 'electron-squirrel-startup';
 import path from 'node:path';
 import os from 'node:os';
 import {readFile,writeFile} from 'node:fs/promises';
+import {writeFileSync} from 'node:fs';
 import {Store} from './store';
 import {Coordinator} from './coordinator';
 import {AccountClient} from './account';
@@ -19,12 +21,15 @@ if(process.argv.includes('--test-isolated')){
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
 }
 let coordinator:Coordinator;let updates:MacUpdates;let windowOptions={floating:true,protection:false};let captureHost:BrowserWindow|null=null;let compact:BrowserWindow|null=null;const views=new Set<BrowserWindow>();let quitting=false;let previous:State|undefined;
+let storageLoading=true;let startupPhase='launch';
+function startupRecord(phase:string){startupPhase=phase;try{writeFileSync(path.join(app.getPath('userData'),'startup-status.json'),JSON.stringify({phase,version:app.getVersion(),platform:process.platform,os:os.release(),arch:process.arch,electron:process.versions.electron,at:new Date().toISOString()}),{mode:0o600});}catch{/* Diagnostics must never prevent startup. */}}
 const single=!squirrelStartup&&app.requestSingleInstanceLock();if(!single)app.quit();
-app.on('second-instance',()=>{const w=[...views][0];if(w){w.restore();w.focus();}});
+function revealReader(){if(quitting||!coordinator)return;const w=[...views].find(w=>!w.isDestroyed());if(w){if(w.isMinimized())w.restore();w.show();w.focus();}else windowView();}
+app.on('second-instance',revealReader);
 function protect(w:BrowserWindow){w.webContents.setWindowOpenHandler(()=>({action:'deny'}));w.webContents.on('will-navigate',e=>e.preventDefault());w.webContents.on('render-process-gone',()=>{if(w===captureHost)coordinator?.fail('Capture host stopped. Restart listening explicitly.');else if(views.has(w))coordinator?.fail('Reader stopped responding. Capture stopped; reopen Intera before listening again.');});}
 function windowView(small=false){
  const w=new BrowserWindow({width:small?500:1100,height:small?280:760,minWidth:small?360:680,minHeight:small?220:520,title:BRAND,alwaysOnTop:small&&windowOptions.floating,show:!small,icon:path.join(app.getAppPath(),'assets/brand/exports/intera.ico'),backgroundColor:'#F5F3ED',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',...(process.platform==='darwin'?{trafficLightPosition:{x:14,y:small?14:24}}:{}),webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false}});
- w.setContentProtection(windowOptions.protection);if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}});
+ w.setContentProtection(windowOptions.protection);if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);void w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}}).catch(()=>{startupRecord('reader-load-failed');dialog.showErrorBox('Intera reader could not open','Installed reader files could not load. Replace the app with the matching Apple Silicon or Intel beta. Your saved files have not been deleted.');});
  w.on('closed',()=>{views.delete(w);if(compact===w)compact=null;if(!views.size)void coordinator.stop();});return w;
 }
 async function makeCapture(){
@@ -38,6 +43,7 @@ async function makeCapture(){
 }
 function trusted(event:Electron.IpcMainInvokeEvent|Electron.IpcMainEvent,capture=false){const w=BrowserWindow.fromWebContents(event.sender);return !!w&&(capture?w===captureHost:views.has(w))&&event.senderFrame===event.sender.mainFrame;}
 if(single)app.whenReady().then(async()=>{
+ startupRecord('ready');
  app.setName(BRAND);
  const build=JSON.parse(await readFile(path.join(__dirname,'build-info.json'),'utf8')) as {sha:string;dirty:boolean;macUpdatesApproved?:boolean;updateTeamId?:string};
  app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · internal beta`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
@@ -47,9 +53,9 @@ if(single)app.whenReady().then(async()=>{
  const accounts=new AccountClient();
  ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
  coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'&&macPlaybackPath(process.getSystemVersion())==='unsupported')throw new Error('Playback capture requires macOS 13 or later.');const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
- coordinator.key=await store.key();coordinator.glossary=store.glossary();coordinator.state.glossary=structuredClone(coordinator.glossary);coordinator.state.keyStored=!!coordinator.key;coordinator.state.secureStorage=await store.secure();
+ coordinator.glossary=store.glossary();coordinator.state.glossary=structuredClone(coordinator.glossary);coordinator.state.storageLoading=true;
  const meetingStore=new MeetingStore(path.join(app.getPath('userData'),'meetings'),{available:()=>store.secure(),encrypt:text=>safeStorage.encryptStringAsync(text),decrypt:async bytes=>(await safeStorage.decryptStringAsync(bytes)).result});
- const refreshMeetings=async()=>{try{coordinator.state.meetings=await meetingStore.list();coordinator.state.meetingStorageError=undefined;}catch{coordinator.state.meetingStorageError='Secure meeting library is unavailable or a saved file could not be read. No file was deleted.';}};await refreshMeetings();
+ const refreshMeetings=async()=>{try{coordinator.state.meetings=await meetingStore.list();coordinator.state.meetingStorageError=undefined;}catch{coordinator.state.meetingStorageError='Secure meeting library is unavailable or a saved file could not be read. No file was deleted.';}};
  windowOptions=store.windowOptions();coordinator.state.windowOptions={...windowOptions};
  updates=new MacUpdates(view=>{coordinator.state.updates=view;coordinator.emit();},()=>coordinator.busy());coordinator.state.updates=updates.view;void updates.initialize({packaged:app.isPackaged,platform:process.platform,arch:process.arch,version:app.getVersion(),bundlePath:process.platform==='darwin'?path.resolve(process.execPath,'../../..'):app.getAppPath(),teamId:build.updateTeamId,approved:build.macUpdatesApproved});
  ipcMain.handle('snapshot',e=>{if(!trusted(e))throw new Error('Denied');return coordinator.state;});
@@ -62,6 +68,7 @@ if(single)app.whenReady().then(async()=>{
   try{
    const c=commandSchema.parse(raw);if(meetingOperation&&c.type!=='stop')throw new Error('Meeting operation in progress. Please wait.');if(['save-meeting','open-meeting','new-meeting','delete-meeting','clear','demo'].includes(c.type)){meetingOperation=true;ownsMeetingOperation=true;}
    if(credentialChange&&!['stop','pause'].includes(c.type))throw new Error('Credential update in progress. Try again when it finishes.');
+   if(storageLoading&&['start','local-test','key','connect-personal','forget-key','validate-key','save-meeting','open-meeting','delete-meeting'].includes(c.type))throw new Error('Opening secure storage. Please wait a moment; Demo and settings remain available.');
    switch(c.type){
     case 'start':if(coordinator.state.meetingReview)throw new Error('Start a new meeting before listening. Saved meetings are for review.');coordinator.state.savedMeeting=undefined;await coordinator.start(coordinator.state.status==='paused'&&coordinator.state.demo);break;
     case 'demo':coordinator.state.meetingReview=false;coordinator.state.savedMeeting=undefined;await coordinator.stop();await coordinator.clear();await coordinator.start(true);break;
@@ -104,9 +111,20 @@ if(single)app.whenReady().then(async()=>{
  powerMonitor.on('suspend',()=>void coordinator.stop('paused'));powerMonitor.on('lock-screen',()=>void coordinator.stop('paused'));
  screen.on('display-removed',()=>{if(compact){const area=screen.getPrimaryDisplay().workArea;compact.setPosition(area.x+20,area.y+20);}});
  if(process.argv.includes('--test-isolated')&&process.argv.includes('--visual-fixture')){coordinator.state.transcript=visualFixture();coordinator.state.demo=true;coordinator.state.status='stopped';coordinator.state.captureHealth='Simulated';}
- windowView();if(process.argv.includes('--demo'))await coordinator.start(true);
-}).catch(()=>{dialog.showErrorBox('Intera could not start','The desktop startup failed. Reinstall a verified Intera build. If this continues, report the app version and macOS version; do not include credentials or conversation data.');app.quit();});
-app.on('activate',()=>{if(!views.size&&coordinator)windowView();});
+ windowView();startupRecord('reader-created');
+ // Keychain prompts and damaged saved meetings must not delay the first window.
+ void (async()=>{try{const restored=await startupDeadline((async()=>{
+   if(process.argv.includes('--test-isolated')&&process.argv.includes('--test-storage-hang'))await new Promise(()=>{});
+   const secure=await store.secure();const key=secure?await store.key():'';
+   let meetings:State['meetings'];let meetingError:string|undefined;
+   try{meetings=secure?await meetingStore.list():[];}catch{meetingError='A saved meeting could not be read. No file was deleted.';}
+   return {secure,key,meetings,meetingError};
+  })());if(quitting)return;coordinator.key=restored.key;coordinator.state.keyStored=!!restored.key;coordinator.state.secureStorage=restored.secure;coordinator.state.meetings=restored.meetings;coordinator.state.meetingStorageError=restored.meetingError;startupRecord('storage-ready');
+ }catch{if(quitting)return;coordinator.state.meetingStorageError='Secure storage did not respond. Saved files are unchanged. You can use Demo or connect a session-only key; quit and reopen to retry secure storage.';startupRecord('storage-unavailable');}
+ finally{if(!quitting){storageLoading=false;coordinator.state.storageLoading=false;coordinator.emit();}}})();
+ if(process.argv.includes('--demo'))await coordinator.start(true);
+}).catch(()=>{startupRecord(`failed-${startupPhase}`);dialog.showErrorBox('Intera could not start','The desktop startup failed. A non-secret startup-status.json report is in ~/Library/Application Support/Intera. Report that file and the app/macOS versions. Your saved data was not deleted.');app.quit();});
+app.on('activate',revealReader);
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 app.on('before-quit',()=>{if(!quitting){quitting=true;updates?.dispose();coordinator?.dispose();}});
 

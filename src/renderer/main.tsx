@@ -16,6 +16,8 @@ import {DirectSoniox} from './direct-soniox';
 import type {BillingView} from '../shared/billing';
 const small=new URLSearchParams(location.search).has('compact');
 function App(){
+ const [greeting,setGreeting]=useState(!small);
+ useEffect(()=>{const timer=setTimeout(()=>setGreeting(false),8000);return()=>clearTimeout(timer);},[]);
  const [s,setS]=useState<State|null>(null),[error,setError]=useState(''),[sheet,setSheet]=useState(''),[query,setQuery]=useState(''),[following,setFollowing]=useState(true),[authorize,setAuthorize]=useState(false);
  const [account,setAccount]=useState<BillingView|null>(null),[settingsQuery,setSettingsQuery]=useState('');
  const last=useRef(-1),scroller=useRef<HTMLDivElement>(null);
@@ -48,6 +50,8 @@ function App(){
    {!small&&<button className="icon" title="Open compact view" aria-label="Open compact view" onClick={()=>void send({type:'compact'})}><PanelTop size={19}/></button>}
    <button className="icon" title="Settings" aria-label="Settings" onClick={()=>setSheet('Reading')}><Settings size={19}/></button></div>
   </div>
+  {greeting&&<div className="translation-status" role="status">I love you Nadin <button aria-label="Dismiss opening message" onClick={()=>setGreeting(false)}>Dismiss</button></div>}
+  {s.storageLoading&&<div className="translation-status" role="status">Opening secure storage · Demo and settings are available</div>}
   {small&&compact&&compact.id!==groups.at(-1)?.id&&<div className="translation-status" role="status">Latest translation · newer speech is awaiting translation</div>}
   {!s.demo&&!s.hold&&s.status==='listening'&&(s.translationHealth?.stalled||translationHidden)&&<div className="translation-status" role="status">{outsidePair?`Soniox identified recent speech as ${detectedLanguageLabel(s.translationHealth!.latestSourceLanguage)}. Two-way translation uses English/Bosnian only. In Languages, consider restricting recognition to English and Bosnian, then stop and start.`:translationHidden?'Translation is arriving. Enable live translation drafts in Settings / Reading.':s.translationHealth?.translationTokens?'No new translation received for 20 seconds. Earlier translations remain readable.':'Speech is arriving, but Soniox has not returned translation for 20 seconds. Check Settings / Languages; stop and start after saving.'}</div>}
   {s.meetingReview&&<div className="translation-status" role="status">Saved meeting · review only <button onClick={()=>setSheet('Meetings')}>New meeting</button></div>}
