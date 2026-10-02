@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export const BRAND = 'Intera';
+export const BRAND = 'Intera AI';
 export const endpointSchema = z.object({ enabled:z.boolean(), delay:z.number().int().min(500).max(3000), level:z.number().int().min(0).max(3), sensitivity:z.number().min(-1).max(1) }).strict();
 export type Endpoint = z.infer<typeof endpointSchema>;
 export const profiles = {

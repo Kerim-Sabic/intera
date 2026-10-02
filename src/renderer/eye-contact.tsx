@@ -10,7 +10,14 @@ export function EyeContactPanel({s,send}:{s:State;send:(command:Command)=>Promis
  async function perform(command:Command){const result=await send(command);setMessage(result.ok?'':result.message??'Camera action failed.');}
  function change(next:GazeSettings){setSettings(next);const checked=gazeSettingsSchema.safeParse(next);if(!checked.success)return;try{localStorage.setItem('intera-gaze-calibration',JSON.stringify(checked.data));}catch{/* Storage failure does not start a camera. */}if(view?.status==='preview')void perform({type:'gaze-configure',settings:checked.data});}
  return <section aria-label="Integrated eye contact">
-  <h3>Eye contact</h3><p>Local gaze correction with an Intera Camera output for your meeting app. Development feature for macOS 14 or later.</p>
+  <h3>Eye contact · gaze correction</h3><p>Local gaze correction with an Intera Camera output for your meeting app. Development feature for macOS 14 or later.</p>
+  <div className="config-preview" aria-label="Camera readiness checklist">
+   <span>Supported Mac <b>{view?.supported?'macOS requirement met':'Requires macOS 14 or later'}</b></span>
+   <span>Camera engine <b>{view?.installed?'Present · models checked when starting':'Not included in this installer'}</b></span>
+   <span>Signed camera bridge <b>{view?.extensionAvailable?'Available · owner activation required':'Unavailable'}</b></span>
+   <span>Meeting output <b>{view?.output?'On · verify your meeting preview':'Off'}</b></span>
+  </div>
+  {view?.checked&&!view.installed&&<p role="note">This setting is included, but gaze correction cannot run in this build. Updating macOS or granting camera permission does not install the missing engine, approved models, or signed camera extension.</p>}
   <p role="status">{view?.message??'Checking availability…'}</p>
   {view?.installed&&<div style={{background:'#171D26',minHeight:160,borderRadius:12,display:'grid',placeItems:'center',overflow:'hidden'}}>{frame?<img alt="Live local camera preview" src={'data:image/jpeg;base64,'+frame} style={{width:'100%',maxWidth:640,maxHeight:240,objectFit:'contain'}}/>:<p style={{color:'#EDF1F5'}}>Camera off</p>}</div>}
   <p className="hint">Zoom output requires the signed Intera Camera extension and your macOS approval. This beta has not been verified in a real Zoom call. No camera recordings or frame uploads.</p>

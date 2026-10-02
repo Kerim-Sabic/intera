@@ -44,13 +44,13 @@ jobs:
       - name: Exercise packaged Mac app and desktop UI
         if: runner.os == 'macOS'
         env:
-          INTERA_MAC_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+          INTERA_MAC_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
         run: npx playwright test
       - name: Attempt packaged Mac local-only playback diagnostic
         if: runner.os == 'macOS'
         continue-on-error: true
         env:
-          INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+          INTERA_CAPTURE_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
         run: npx tsx scripts/capture-diagnostic.ts --packaged
       # Playwright clears test-results at startup. Write integrity evidence after it.
       - name: Verify Mac app and installer integrity
@@ -60,7 +60,7 @@ jobs:
         if: runner.os == 'macOS'
         continue-on-error: true
         env:
-          INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+          INTERA_CAPTURE_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
         run: npx tsx scripts/capture-diagnostic.ts --packaged --mac-playback-compat
       # One-off comparison with the actual artifact reported as damaged.
       - uses: actions/download-artifact@v4

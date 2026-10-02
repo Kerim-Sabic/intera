@@ -18,6 +18,8 @@ import {displayed} from '../shared/transcript';
 import {visualFixture} from '../shared/visual-fixture';
 import {providerLinks} from '../shared/provider-links';
 import {macPlaybackPath,captureFailure} from './mac-compatibility';
+// Keep the existing data directory across the display-name change.
+app.setPath('userData',path.join(app.getPath('appData'),'Intera'));
 if(process.argv.includes('--test-isolated')){
  const label=process.argv.find(v=>v.startsWith('--test-profile='))?.slice(15);
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
@@ -53,13 +55,14 @@ if(single)app.whenReady().then(async()=>{
  app.setName(BRAND);
  const build=JSON.parse(await readFile(path.join(__dirname,'build-info.json'),'utf8')) as {sha:string;dirty:boolean;macUpdatesApproved?:boolean;updateTeamId?:string};
  app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · internal beta`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
- Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera',click:()=>app.showAboutPanel()}]}]));
+ Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera AI',click:()=>app.showAboutPanel()}]}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
  const store=new Store();let credentialChange=false;let meetingOperation=false;
  const accounts=new AccountClient();eyeContact=new EyeContact(view=>{coordinator.state.eyeContact=view;coordinator.emit();},frame=>{for(const w of views)if(!w.isDestroyed())w.webContents.send('gaze-frame',frame);});
  ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
  coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'&&macPlaybackPath(process.getSystemVersion())==='unsupported')throw new Error('Playback capture requires macOS 13 or later.');const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
  if(process.platform==='darwin')coordinator.state.macCapture={compatibility:macCompatibility,nextCompatibility:macCompatibility};
+ coordinator.state.build={version:app.getVersion(),sha:build.sha,dirty:build.dirty};
  coordinator.glossary=store.glossary();coordinator.state.glossary=structuredClone(coordinator.glossary);coordinator.state.storageLoading=true;
  const meetingStore=new MeetingStore(path.join(app.getPath('userData'),'meetings'),{available:()=>store.secure(),encrypt:text=>safeStorage.encryptStringAsync(text),decrypt:async bytes=>(await safeStorage.decryptStringAsync(bytes)).result});
  const refreshMeetings=async()=>{try{coordinator.state.meetings=await meetingStore.list();coordinator.state.meetingStorageError=undefined;}catch{coordinator.state.meetingStorageError='Secure meeting library is unavailable or a saved file could not be read. No file was deleted.';}};

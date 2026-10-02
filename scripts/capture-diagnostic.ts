@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 const env=Object.fromEntries(Object.entries(process.env).filter(([k,v])=>k!=='ELECTRON_RUN_AS_NODE'&&v!==undefined)) as Record<string,string>;
 async function main(){
- const packaged=process.argv.includes('--packaged');const executablePath=process.env.INTERA_CAPTURE_EXECUTABLE||(process.platform==='darwin'?`out/Intera-darwin-${process.arch}/Intera.app/Contents/MacOS/Intera`:'out/Intera-win32-x64/Intera.exe');const app=await electron.launch(packaged?{executablePath,args:['--test-isolated',...(process.argv.includes('--mac-playback-compat')?['--mac-playback-compat']:[])],env}:{args:['.','--test-isolated',...(process.argv.includes('--mac-playback-compat')?['--mac-playback-compat']:[])],env});
+ const packaged=process.argv.includes('--packaged');const executablePath=process.env.INTERA_CAPTURE_EXECUTABLE||(process.platform==='darwin'?`out/Intera AI-darwin-${process.arch}/Intera AI.app/Contents/MacOS/Intera`:'out/Intera AI-win32-x64/Intera.exe');const app=await electron.launch(packaged?{executablePath,args:['--test-isolated',...(process.argv.includes('--mac-playback-compat')?['--mac-playback-compat']:[])],env}:{args:['.','--test-isolated',...(process.argv.includes('--mac-playback-compat')?['--mac-playback-compat']:[])],env});
  let player:ChildProcess|undefined;let toneDirectory:string|undefined;let toneExit:number|null|undefined;let toneStarted=false;
  try{
   const page=await app.firstWindow();await page.waitForFunction(()=>!!window.intera);

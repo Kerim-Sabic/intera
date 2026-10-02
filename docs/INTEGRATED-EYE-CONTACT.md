@@ -1,6 +1,8 @@
 # Integrated eye contact — development status
 
-The requested delivery is one Intera application: camera selection, local corrected preview, on/off and calibration controls, plus an **Intera Camera** virtual camera selectable in Zoom. A launcher for GazeAt does not satisfy this. No companion installer is downloaded or launched by this implementation.
+The requested delivery is one Intera AI application: camera selection, local corrected preview, on/off and calibration controls, plus an **Intera Camera** virtual camera selectable in Zoom. A launcher for GazeAt does not satisfy this. No companion installer is downloaded or launched by this implementation.
+
+User-facing navigation and readiness: [Eye contact guide](EYE-CONTACT-FOR-USERS.md). Beta.13 exposes a direct camera toolbar shortcut and installed build information; the published beta.12 still lacks the working camera bundle.
 
 ## Implemented
 

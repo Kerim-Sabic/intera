@@ -1,15 +1,15 @@
 import {desktopScreenshot} from './desktop-screenshot';
 import {_electron as electron,test,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
-test('direct payment onboarding works without Intera auth and keeps session-only keys out of snapshots and restart',async()=>{
+test('direct payment onboarding works without Intera AI auth and keeps session-only keys out of snapshots and restart',async()=>{
  const env=Object.fromEntries(Object.entries(process.env).filter(([k,v])=>k!=='ELECTRON_RUN_AS_NODE'&&!k.startsWith('INTERA_')&&v!==undefined)) as Record<string,string>;
  const args=['.','--test-isolated',`--test-profile=direct-${Date.now()}`];let app=await electron.launch({args,env});
  const dir='test-results/direct-soniox';await mkdir(dir,{recursive:true});
  try{
   const page=await app.firstWindow(),win=await app.browserWindow(page);await win.evaluate(w=>w.setSize(1280,800));
-  await page.getByRole('button',{name:'Set up Intera',exact:true}).click();
+  await page.getByRole('button',{name:'Set up Intera AI',exact:true}).click();
   const setup=page.getByRole('region',{name:'Pay Soniox directly',exact:true});
-  await expect(setup.getByText('Intera adds no usage fee.',{exact:true})).toBeVisible();
+  await expect(setup.getByText('Intera AI adds no usage fee.',{exact:true})).toBeVisible();
   await expect(setup.getByRole('button',{name:'Open Soniox API Console'})).toBeVisible();
   await desktopScreenshot(app,page,{path:`${dir}/onboarding-light.png`});
   await setup.getByRole('button',{name:'I have a project'}).click();
@@ -33,7 +33,7 @@ test('direct payment onboarding works without Intera auth and keeps session-only
   await expect(page.getByRole('heading',{name:'Listen to meeting playback'})).toBeVisible();
   await page.getByRole('button',{name:'4. Ready',exact:true}).click();await expect(page.getByText('Soniox bills your API use directly.',{exact:false})).toBeVisible();await desktopScreenshot(app,page,{path:`${dir}/ready.png`});
   await page.getByRole('button',{name:'Close settings'}).click();await page.getByRole('button',{name:'Start',exact:true}).click();
-  await expect(page.getByText('Intera adds no usage fee and does not use your subscription allowance.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.getByText('Intera AI adds no usage fee and does not use your subscription allowance.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Billed by Soniox',exact:true}).click();
   await page.getByRole('button',{name:'4. Connect & test'}).click();
   await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,theme:'dark'},timing:'next'});});
