@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export const BRAND = 'Intera';
+export const BRAND = 'Intera AI';
 export const endpointSchema = z.object({ enabled:z.boolean(), delay:z.number().int().min(500).max(3000), level:z.number().int().min(0).max(3), sensitivity:z.number().min(-1).max(1) }).strict();
 export type Endpoint = z.infer<typeof endpointSchema>;
 export const profiles = {
@@ -17,9 +17,13 @@ export const presetSchema=z.object({name:z.string().trim().min(1).max(40),endpoi
 export const preferencesSchema=z.object({version:z.literal(1),funding:z.enum(['managed','personal']).default('managed'),processing:processingSchema,drafts:z.boolean(),sourceDrafts:z.boolean().default(true),translationDrafts:z.boolean().default(true),sourceSpacing:z.number().min(1.2).max(2).default(1.65),translationSpacing:z.number().min(1.2).max(2).default(1.48),sourceSize:z.number().int().min(14).max(24),translationSize:z.number().int().min(18).max(36),theme:z.enum(['system','light','dark']),showSource:z.boolean(),region:regionSchema,presets:z.array(presetSchema).max(20),onboarded:z.boolean()}).strict();
 export type Preferences=z.infer<typeof preferencesSchema>;
 export const defaults:Preferences={version:1,funding:'managed',processing:{profile:'Balanced',endpoint:profiles.Balanced,mode:'two_way',strict:false,speakers:true,packetMs:80},drafts:true,sourceDrafts:true,translationDrafts:true,sourceSpacing:1.65,translationSpacing:1.48,sourceSize:19,translationSize:26,theme:'system',showSource:true,region:'us',presets:[],onboarded:false};
-export const glossarySchema=z.object({terms:z.array(z.string().trim().min(1).max(100)).max(100),translations:z.array(z.object({source:z.string().trim().min(1).max(100),target:z.string().trim().min(1).max(100)}).strict()).max(100)}).strict().superRefine((g,c)=>{if(new Set(g.terms.map(t=>t.toLowerCase())).size!==g.terms.length || new Set(g.translations.map(t=>t.source.toLowerCase())).size!==g.translations.length)c.addIssue({code:'custom',message:'Duplicate or conflicting glossary terms'});});
+// Conservative application budget; Soniox's actual 8,000-token limit remains authoritative.
+export const glossaryContextBudget=8000;
+export const glossaryContentSchema=z.object({terms:z.array(z.string().trim().min(1).max(100)).max(100),translations:z.array(z.object({source:z.string().trim().min(1).max(100),target:z.string().trim().min(1).max(100)}).strict()).max(100)}).strict();
+export const glossarySchema=glossaryContentSchema.superRefine((g,c)=>{if(new Set(g.terms.map(t=>t.normalize('NFC').toLowerCase())).size!==g.terms.length || new Set(g.translations.map(t=>t.source.normalize('NFC').toLowerCase())).size!==g.translations.length)c.addIssue({code:'custom',message:'Duplicate or conflicting glossary terms'});if(JSON.stringify(glossaryContext(g)).length>glossaryContextBudget)c.addIssue({code:'custom',message:'Glossary is too large for the session context budget. Select fewer terms; nothing was removed automatically.'});});
 export type Glossary=z.infer<typeof glossarySchema>;
 export const emptyGlossary:Glossary={terms:[],translations:[]};
+export function glossaryContext(g:Glossary){return {general:[{key:'domain',value:'Medical conversation'},{key:'language preference',value:'Bosnian Latin, ijekavian'}],terms:g.terms,translation_terms:g.translations};}
 export const audioSchema=z.object({sampleRate:z.number().int().min(8000).max(96000),channels:z.union([z.literal(1),z.literal(2)])}).strict();
 export type AudioFormat=z.infer<typeof audioSchema>;
 export function providerConfig(processing:Processing,audio:AudioFormat,glossary:Glossary=emptyGlossary){
@@ -27,7 +31,7 @@ export function providerConfig(processing:Processing,audio:AudioFormat,glossary:
   return {model:'stt-rt-v5',audio_format:'pcm_s16le',sample_rate:a.sampleRate,num_channels:a.channels,language_hints:['en','bs'],language_hints_strict:p.strict,enable_language_identification:true,enable_speaker_diarization:p.speakers,
     enable_endpoint_detection:p.endpoint.enabled,...(p.endpoint.enabled?{max_endpoint_delay_ms:p.endpoint.delay,endpoint_latency_adjustment_level:p.endpoint.level,endpoint_sensitivity:p.endpoint.sensitivity}:{}),
     ...(p.mode==='none'?{}:{translation:p.mode==='two_way'?{type:'two_way',language_a:'en',language_b:'bs'}:{type:'one_way',target_language:p.mode}}),
-    context:{general:[{key:'domain',value:'Medical conversation'},{key:'language preference',value:'Bosnian Latin, ijekavian'}],terms:g.terms,translation_terms:g.translations}};
+    context:glossaryContext(g)};
 }
 export function selectProfile(p:Processing,profile:Processing['profile']):Processing{return {...p,profile,endpoint:profile==='Custom'?{...p.endpoint}:{...profiles[profile]}};}
 

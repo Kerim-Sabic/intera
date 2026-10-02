@@ -11,3 +11,8 @@ playwright-report/
 *.wav
 *.pfx
 *.p12
+camera/upstream/weights/
+camera/upstream/models/
+camera/upstream/approved-models.json
+camera/development-data/
+**/__pycache__/

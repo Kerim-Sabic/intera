@@ -1,0 +1,30 @@
+{
+  "scope": "Synthetic eye tensors on Windows CPU. No face, webcam or Zoom test. Not a Mac benchmark.",
+  "tensorflow": "2.19.0",
+  "weightsArchiveSHA256": "07279dd9072f784e32c26e0c40bdf10270f98c6f3e9b3effc3254c4ce05fa76a",
+  "results": [
+    {
+      "eye": "L",
+      "shape": [
+        48,
+        64,
+        3
+      ],
+      "finite": true,
+      "angleChangeMeanAbsDifference": 0.22664329409599304,
+      "firstInferenceSeconds": 0.0935
+    },
+    {
+      "eye": "R",
+      "shape": [
+        48,
+        64,
+        3
+      ],
+      "finite": true,
+      "angleChangeMeanAbsDifference": 0.1734011471271515,
+      "firstInferenceSeconds": 0.0798
+    }
+  ],
+  "modelRedistribution": "NOT APPROVED"
+}

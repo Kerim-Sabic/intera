@@ -1,0 +1,14 @@
+import {it,expect,vi,afterEach} from 'vitest';
+const mocks=vi.hoisted(()=>({verify:vi.fn(),inspect:vi.fn(),load:vi.fn(),native:{activate:vi.fn(()=>true),state:vi.fn(()=>'inactive'),start:vi.fn(()=>true),submit:vi.fn(()=>true),stop:vi.fn(()=>true)}}));
+vi.mock('electron',()=>({app:{isPackaged:true}}));
+vi.mock('node:child_process',()=>({execFile:(_file:string,args:string[],_options:unknown,callback:(error:Error|null,stdout:string,stderr:string)=>void)=>{try{if(args[0]==='--verify'){mocks.verify();callback(null,'','');}else{const result=mocks.inspect();callback(null,'',result.stderr);}}catch(error){callback(error as Error,'','');}}}));
+vi.mock('node:module',()=>({createRequire:()=>mocks.load}));
+import {CameraExtension} from '../src/main/camera-extension';
+afterEach(()=>vi.clearAllMocks());
+async function build(teams=['AAAABBBBCC','AAAABBBBCC','AAAABBBBCC']){
+ const platform=Object.getOwnPropertyDescriptor(process,'platform')!;const resources=Object.getOwnPropertyDescriptor(process,'resourcesPath');
+ try{Object.defineProperty(process,'platform',{value:'darwin',configurable:true});Object.defineProperty(process,'resourcesPath',{value:'/Applications/Intera.app/Contents/Resources',configurable:true});mocks.inspect.mockReset();for(const team of teams)mocks.inspect.mockReturnValueOnce({status:0,stderr:'TeamIdentifier='+team});mocks.load.mockReturnValue(mocks.native);const camera=new CameraExtension();await camera.check();return camera;}finally{Object.defineProperty(process,'platform',platform);if(resources)Object.defineProperty(process,'resourcesPath',resources);else Reflect.deleteProperty(process,'resourcesPath');}
+}
+it('never loads native code when installed signatures fail or teams differ',async()=>{mocks.verify.mockImplementationOnce(()=>{throw new Error('Synthetic signature rejection');});expect((await build()).available).toBe(false);expect(mocks.load).not.toHaveBeenCalled();expect((await build(['AAAABBBBCC','DIFFTEAM12','AAAABBBBCC'])).available).toBe(false);expect(mocks.load).not.toHaveBeenCalled();});
+it('matching signed components still require explicit activation and output start',async()=>{const camera=await build();expect(camera.available).toBe(true);expect(mocks.native.activate).not.toHaveBeenCalled();expect(mocks.native.start).not.toHaveBeenCalled();camera.activate();expect(mocks.native.activate).toHaveBeenCalledTimes(1);camera.frame('/9j/');expect(mocks.native.submit).not.toHaveBeenCalled();expect(camera.start()).toBe(true);camera.frame('/9j/');expect(mocks.native.submit).toHaveBeenCalledTimes(1);camera.stop();expect(camera.output).toBe(false);});
+it('a failed queue submission clears output rather than silently claiming live video',async()=>{const camera=await build();camera.start();mocks.native.submit.mockReturnValueOnce(false);expect(()=>camera.frame('/9j/')).toThrow('Output stopped');expect(camera.output).toBe(false);expect(mocks.native.stop).toHaveBeenCalled();});

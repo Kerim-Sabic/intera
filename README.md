@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/masters/wordmark.svg" alt="Intera" width="260">
+  <img src="assets/brand/masters/wordmark.svg" alt="Intera AI" width="260">
 </p>
 
 <h1 align="center">Read the original. Deliver the meaning.</h1>
@@ -21,22 +21,28 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-6D91BB" alt="Apache 2.0 license"></a>
 </p>
 
-![Actual Intera desktop demo with synthetic English and Bosnian turns](docs/images/reader-demo-light.png)
+![Actual Intera AI desktop demo with synthetic English and Bosnian turns](docs/images/reader-demo-light.png)
 
 *The running Electron app with labeled synthetic conversation. No meeting audio was captured or sent for this screenshot.*
 
-> **Internal beta:** You can run the demo today. Funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release. Intera assists a human interpreter; it is not an autonomous interpreter or a clinically validated product.
+> **Internal beta:** You can run the demo today. Funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release. Intera AI assists a human interpreter; it is not an autonomous interpreter or a clinically validated product.
 
 ## Built for the interpreter's workflow
 
-When a speaker changes direction or returns later, an interpreter needs the original words, the translation, and the order in which they arrived. Intera puts them in one chronological reading view. It copies **computer playback**; it does not join, speak into, or control the meeting.
+When a speaker changes direction or returns later, an interpreter needs the original words, the translation, and the order in which they arrived. Intera AI puts them in one chronological reading view. It copies **computer playback**; it does not join, speak into, or control the meeting.
 
 - **Keep the source in sight.** Read English ↔ Bosnian source and translation together; see which words are still drafts and which have settled.
 - **Find your place again.** Follow speaker turns, search, pin a snapshot, mark a passage interpreted, correct text, or jump back to live after scrolling.
 - **Fit your reading pace.** Choose Speed, Balanced, Accuracy-first, or Custom processing; set source and translation sizes, spacing, theme, and draft visibility independently.
 - **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Save authorized meeting text locally, start a fresh meeting, or export the text when finished.
 
-Intera captures all computer playback while listening, including notifications. It does not request the physical microphone in meeting-playback mode. Only share audio you are authorized to process.
+Intera AI captures all computer playback while listening, including notifications. It does not request the physical microphone in meeting-playback mode. Only share audio you are authorized to process.
+
+## Mac downloads and Eye contact
+
+[Published experimental beta.12 downloads](https://github.com/Kerim-Sabic/intera/releases/tag/v0.2.0-beta.12) are available for Apple Silicon and Intel. Read the release limitations before installing; these are ad-hoc signed, not Apple Developer ID signed or notarized.
+
+The current beta.13 source renames the app **Intera AI**, adds a direct camera toolbar shortcut, and shows the installed version plus camera readiness. **The public beta.12 does not provide working gaze correction.** The engine, reviewed model distribution and signed camera-enabled installer remain outstanding. See the [step-by-step Eye contact guide](docs/EYE-CONTACT-FOR-USERS.md). Source updates do not automatically replace an installed app.
 
 ## Try the demo
 
@@ -53,25 +59,25 @@ The demo uses twelve varied synthetic turns. It requires no Soniox account, paym
 
 ## Connect your own Soniox account
 
-For real authorized audio, follow the illustrated [Soniox setup guide](docs/SONIOX-SETUP-FOR-USERS.md). In the app, choose **Set up Intera → Pay Soniox directly**. The guide walks through project creation, billing review, a scoped key, the region choice, and a local playback test.
+For real authorized audio, follow the illustrated [Soniox setup guide](docs/SONIOX-SETUP-FOR-USERS.md). In the app, choose **Set up Intera AI → Pay Soniox directly**. The guide walks through project creation, billing review, a scoped key, the region choice, and a local playback test.
 
-In that mode, the user funds their own Soniox API account and pastes a project key into Intera's masked field. Soniox bills the user for API use; Intera adds no usage fee. The key can be kept for this session or stored with the operating system's secure storage. A key check does not verify credit or live access. Existing Intera account/subscription work is separate and remains behind service readiness gates.
+In that mode, the user funds their own Soniox API account and pastes a project key into Intera AI's masked field. Soniox bills the user for API use; Intera AI adds no usage fee. The key can be kept for this session or stored with the operating system's secure storage. A key check does not verify credit or live access. Existing Intera AI account/subscription work is separate and remains behind service readiness gates.
 
 <details>
 <summary>Dark theme and compact reader</summary>
 
-![Actual Intera dark-theme demo with synthetic English and Bosnian turns](docs/images/reader-demo-dark.png)
+![Actual Intera AI dark-theme demo with synthetic English and Bosnian turns](docs/images/reader-demo-dark.png)
 
-![Actual Intera compact demo showing the beginning of a multiline translation](docs/images/compact-demo.png)
+![Actual Intera AI compact demo showing the beginning of a multiline translation](docs/images/compact-demo.png)
 
 Both screenshots are from the running Electron app with labeled synthetic content.
 </details>
 
 ## How it works
 
-1. With your authorization, Intera copies computer playback locally. It does not request the physical microphone in meeting-playback mode.
-2. During a personal-key live session, the trusted desktop process sends that audio to your selected Soniox region. The interface never receives your API key; the audio does not pass through Intera's billing server.
-3. The reader shows the original and translation together. Intera stores preferences and, if requested, an encrypted key on this device. You can explicitly save meeting text and corrections in an encrypted local library; there is no cloud transcript history.
+1. With your authorization, Intera AI copies computer playback locally. It does not request the physical microphone in meeting-playback mode.
+2. During a personal-key live session, the trusted desktop process sends that audio to your selected Soniox region. The interface never receives your API key; the audio does not pass through Intera AI's billing server.
+3. The reader shows the original and translation together. Intera AI stores preferences and, if requested, an encrypted key on this device. You can explicitly save meeting text and corrections in an encrypted local library; there is no cloud transcript history.
 
 See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DIRECT-SONIOX.md) for implementation details.
 
@@ -84,6 +90,7 @@ See [architecture](docs/ARCHITECTURE.md) and [direct-payment boundaries](docs/DI
 | Windows and Mac packaging | CI builds Windows x64, Apple Silicon, and Intel Mac artifacts |
 | Live paid Soniox transcription and translation | **Not yet verified with a funded user account** |
 | Physical Mac meeting/headset capture | **Not yet verified** |
+| Integrated local gaze correction and Intera Camera | Native Mac extension/bridge and in-app controls implemented; **signed activation and physical Zoom output not verified**. Model redistribution and runtime packaging remain gated. |
 | Public distribution | **Not ready:** Mac betas use ad-hoc integrity signing; Apple Developer ID signing, notarization, and physical capture verification remain |
 
 CI build success is evidence of packaging, not evidence that live capture works on every machine. [Compatibility and release checks](docs/COMPATIBILITY.md) and the [beta evidence report](docs/MANAGED-BETA-EVIDENCE.md) record the practical limits. No public checkout or automatic overage charging is enabled.
@@ -105,9 +112,9 @@ The desktop is Electron + React + strict TypeScript. The optional managed-accoun
 
 ## Project and license
 
-Intera is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. The next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. If this interpreter-first approach is useful to you, **star the repository to follow its progress**. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
+Intera AI is a beta being built in the open. Bug reports, accessibility feedback, and reproducible platform evidence are especially useful. The next priorities are live-provider verification, physical Mac/Windows meeting tests, and signed distribution. If this interpreter-first approach is useful to you, **star the repository to follow its progress**. Use the [issue templates](.github/ISSUE_TEMPLATE) for general feedback and [private reporting guidance](SECURITY.md) for security concerns.
 
-Created by **Kerim Sabic** as a **Horalix** project. The code and original repository artwork are licensed under [Apache 2.0](LICENSE); attribution is recorded in [NOTICE](NOTICE). The license does not grant rights to use the Intera or Horalix names or marks to imply endorsement. Third-party packages keep their own licenses; no Soniox, Electron, Whop, or Apple affiliation is claimed.
+Created by **Kerim Sabic** as a **Horalix** project. The code and original repository artwork are licensed under [Apache 2.0](LICENSE); attribution is recorded in [NOTICE](NOTICE). The license does not grant rights to use the Intera AI or Horalix names or marks to imply endorsement. Third-party packages keep their own licenses; no Soniox, Electron, Whop, or Apple affiliation is claimed.
 
 ### Meeting workspace and supplied terminology
 

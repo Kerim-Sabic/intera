@@ -2,7 +2,7 @@ import {initialTranslationHealth,receiveTranslationHealth,checkTranslationHealth
 import WebSocket from 'ws';
 import {CaptureStartupError} from '../shared/capture-diagnostic';
 import type {Admission,AdmissionBoundary} from '../shared/managed';
-import {defaults,draftVisibility,providerConfig,audioSchema,destination,preferencesSchema,type Preferences,type Glossary} from '../shared/config';
+import {defaults,draftVisibility,providerConfig,glossarySchema,audioSchema,destination,preferencesSchema,type Preferences,type Glossary} from '../shared/config';
 import {initialTranscript,beginEpoch,reduceTokens,responseSchema,changeGroup} from '../shared/transcript';
 import {demoEvents} from '../shared/demo';
 import type {State,Status} from '../shared/protocol';
@@ -20,6 +20,7 @@ export class Coordinator{
  async start(demo=false,local=false){
   if(this.busy())return;
   if(!demo&&!local&&(!this.boundary||this.state.preferences.funding==='personal')&&!this.key)throw new Error('Add your Soniox key in Settings first.');
+  if(!demo&&!local){const glossary=glossarySchema.safeParse(this.glossary);if(!glossary.success)throw new Error(glossary.error.issues[0]?.message??'Review session terminology before listening.');}
   const resume=this.state.status==='paused';
   if(!resume||this.state.pending?.timing==='pause'||!this.state.effective)this.state.effective=structuredClone(this.state.preferences.processing);
   if(!resume||this.state.pending?.timing==='pause')this.state.pending=null;
@@ -28,12 +29,12 @@ export class Coordinator{
   this.state.translationHealth=initialTranslationHealth();this.state.transcript=beginEpoch(this.state.transcript,epoch);this.state.demo=demo;this.state.status=local?'local-test':demo?'listening':'connecting';this.state.meter=0;this.state.packets=0;this.state.audio=null;this.state.message=demo?'Demo — simulated conversation':local?'Local playback test — nothing is uploaded':'Starting a new connection. Speech during the gap is not captured.';this.state.captureHealth=demo?'Simulated':'Waiting for samples';this.state.networkHealth=local||demo?'Not connected':'Connecting';this.started=Date.now();this.lastPacket=Date.now();this.emit();
   if(demo){let n=0;this.timer=setInterval(()=>{if(epoch!==this.epoch)return;if(n<demoEvents.length){this.state.transcript=reduceTokens(this.state.transcript,epoch,++this.event,demoEvents[n++]);this.emit();}else{this.cleanup();this.state.status='error';this.state.message='Demo — simulated network failure. Resume starts a new epoch.';this.emit();}},1100);return;}
   if(!local){try{if(this.boundary&&this.state.preferences.funding!=='personal'){const admission=await this.boundary.admit();if(epoch!==this.epoch){void this.boundary.end(admission.leaseId).catch(()=>{});return;}this.admission=admission;this.streamKey=admission.apiKey;this.state.managed={reservedMs:admission.maxSeconds*1000,provisionalMs:0,finalizing:false,region:admission.region};this.lastPacket=Date.now();}else{this.streamKey=this.key;this.state.managed=undefined;}}catch{if(epoch===this.epoch)this.fail('Managed admission unavailable. Sign in, check allowance, or wait for usage to finalize.');return;}}
-  this.watchdog=setInterval(()=>{if(epoch!==this.epoch)return;const health=this.state.translationHealth;if(this.state.status==='listening'&&this.state.effective?.mode!=='none'&&health){const checked=checkTranslationHealth(health,Date.now());if(checked!==health){this.state.translationHealth=checked;this.emit();}}if(this.admission&&Date.now()-this.started>=this.admission.maxSeconds*1000){this.fundedBoundary();return;}if(Date.now()-this.lastPacket>6000)this.fail('No playback samples received. This is different from delivered silent samples. Check permissions and the playback device.');else if(Date.now()-this.started>295*60000){this.state.message='Provider duration limit approaching. Pause and Resume to open a new request.';this.emit();if(Date.now()-this.started>299*60000)void this.stop('paused');}},1000);
+  this.watchdog=setInterval(()=>{if(epoch!==this.epoch)return;const health=this.state.translationHealth;if(this.state.status==='listening'&&this.state.effective?.mode!=='none'&&health){const checked=checkTranslationHealth(health,Date.now());if(checked!==health){this.state.translationHealth=checked;this.emit();}}if(this.admission&&Date.now()-this.started>=this.admission.maxSeconds*1000){this.fundedBoundary();return;}if(Date.now()-this.lastPacket>(this.state.audio?6000:30000))this.fail(this.state.audio?'Playback samples stopped arriving. Check the output device; silence samples would still count.':`Playback acquisition timed out at ${this.state.captureDiagnostic?.stage??'capture-host'}. Open Settings → Audio for the diagnostic code.`);else if(Date.now()-this.started>295*60000){this.state.message='Provider duration limit approaching. Pause and Resume to open a new request.';this.emit();if(Date.now()-this.started>299*60000)void this.stop('paused');}},1000);
   try{await this.capture.start(epoch,this.state.effective!.packetMs);}catch(error){if(epoch===this.epoch)this.fail(error instanceof CaptureStartupError?error.message:'Capture host could not initialize. Open Settings → Audio for diagnostics; this does not establish a denied permission.');}
  }
  format(epoch:number,input:unknown){
   if(epoch!==this.epoch||!['connecting','local-test'].includes(this.state.status))return;
-  const audio=audioSchema.parse(input);this.state.audio=audio;
+  const audio=audioSchema.parse(input);this.state.audio=audio;this.lastPacket=Date.now();
   if(this.state.status==='local-test'){this.emit();return;}
   if(this.socket)return;
   const ws=this.connect(this.admission?.endpoint??destination(this.state.preferences.region));this.socket=ws;

@@ -1,3 +1,4 @@
+import {EyeContact} from './eye-contact';
 import {MeetingStore} from './meetings';
 import {MacUpdates} from './updates';
 import {startupDeadline} from './startup';
@@ -17,11 +18,15 @@ import {displayed} from '../shared/transcript';
 import {visualFixture} from '../shared/visual-fixture';
 import {providerLinks} from '../shared/provider-links';
 import {macPlaybackPath,captureFailure} from './mac-compatibility';
+// Keep the existing data directory across the display-name change.
+app.setPath('userData',path.join(app.getPath('appData'),'Intera'));
 if(process.argv.includes('--test-isolated')){
  const label=process.argv.find(v=>v.startsWith('--test-profile='))?.slice(15);
  app.setPath('userData',path.join(os.tmpdir(),label&&/^[a-z0-9-]{1,80}$/.test(label)?`intera-test-${label}`:`intera-test-${process.pid}`));
 }
-let coordinator:Coordinator;let updates:MacUpdates;let windowOptions={floating:true,protection:false};let captureHost:BrowserWindow|null=null;let compact:BrowserWindow|null=null;const views=new Set<BrowserWindow>();let quitting=false;let previous:State|undefined;
+const macCompatibility=process.platform==='darwin'&&(process.argv.includes('--mac-playback-compat')||new Store().captureCompatibility());
+if(macCompatibility)app.commandLine.appendSwitch('disable-features','MacCatapLoopbackAudioForScreenShare');
+let eyeContact:EyeContact;let coordinator:Coordinator;let updates:MacUpdates;let windowOptions={floating:true,protection:false};let captureHost:BrowserWindow|null=null;let compact:BrowserWindow|null=null;const views=new Set<BrowserWindow>();let quitting=false;let previous:State|undefined;
 let storageLoading=true;let startupPhase='launch';
 function startupRecord(phase:string){startupPhase=phase;try{writeFileSync(path.join(app.getPath('userData'),'startup-status.json'),JSON.stringify({phase,version:app.getVersion(),platform:process.platform,os:os.release(),arch:process.arch,electron:process.versions.electron,at:new Date().toISOString()}),{mode:0o600});}catch{/* Diagnostics must never prevent startup. */}}
 const single=!squirrelStartup&&app.requestSingleInstanceLock();if(!single)app.quit();
@@ -31,9 +36,9 @@ function protect(w:BrowserWindow){w.webContents.setWindowOpenHandler(()=>({actio
 function windowView(small=false){
  const w=new BrowserWindow({width:small?500:1100,height:small?280:760,minWidth:small?360:680,minHeight:small?220:520,title:BRAND,alwaysOnTop:small&&windowOptions.floating,show:!small,icon:path.join(app.getAppPath(),'assets/brand/exports/intera.ico'),backgroundColor:'#F5F3ED',titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',...(process.platform==='darwin'?{trafficLightPosition:{x:14,y:small?14:24}}:{}),webPreferences:{preload:path.join(__dirname,'preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false,spellcheck:false,backgroundThrottling:false}});
  w.setContentProtection(windowOptions.protection);if(small)w.once('ready-to-show',()=>w.showInactive());views.add(w);protect(w);void w.loadFile(path.join(__dirname,'ui/index.html'),{query:small?{compact:'1'}:{}}).catch(()=>{startupRecord('reader-load-failed');dialog.showErrorBox('Intera reader could not open','Installed reader files could not load. Replace the app with the matching Apple Silicon or Intel beta. Your saved files have not been deleted.');});
- w.on('closed',()=>{views.delete(w);if(compact===w)compact=null;if(!views.size)void coordinator.stop();});return w;
+ w.on('closed',()=>{views.delete(w);if(compact===w)compact=null;if(!views.size){eyeContact?.stop();void coordinator.stop();}});return w;
 }
-function recordCapture(epoch:number,raw:unknown){if(!coordinator||coordinator.state.transcript.epoch!==epoch)return;const parsed=captureDiagnosticSchema.safeParse(raw);if(!parsed.success)return;let screenPermission:CaptureDiagnostic['screenPermission'];if(process.platform==='darwin')try{screenPermission=systemPreferences.getMediaAccessStatus('screen');}catch{screenPermission='unknown';}coordinator.state.captureDiagnostic={...parsed.data,screenPermission};try{writeFileSync(path.join(app.getPath('userData'),'capture-status.json'),JSON.stringify({...coordinator.state.captureDiagnostic,version:app.getVersion(),electron:process.versions.electron,os:process.platform==='darwin'?process.getSystemVersion():os.release(),arch:process.arch}),{mode:0o600});}catch{/* Diagnostic storage is optional. */}coordinator.emit();}
+function recordCapture(epoch:number,raw:unknown){if(!coordinator||coordinator.state.transcript.epoch!==epoch)return;const parsed=captureDiagnosticSchema.safeParse(raw);if(!parsed.success)return;let screenPermission:CaptureDiagnostic['screenPermission'];if(process.platform==='darwin')try{screenPermission=systemPreferences.getMediaAccessStatus('screen');}catch{screenPermission='unknown';}coordinator.state.captureDiagnostic={...parsed.data,screenPermission};try{writeFileSync(path.join(app.getPath('userData'),'capture-status.json'),JSON.stringify({...coordinator.state.captureDiagnostic,requestedCaptureBackend:macCompatibility?'screen-capture-kit-compatibility':'runtime-default',version:app.getVersion(),electron:process.versions.electron,os:process.platform==='darwin'?process.getSystemVersion():os.release(),arch:process.arch}),{mode:0o600});}catch{/* Diagnostic storage is optional. */}coordinator.emit();}
 async function makeCapture(){
  const epoch=coordinator.state.transcript.epoch;recordCapture(epoch,{stage:'capture-host'});
  if(captureHost&&!captureHost.isDestroyed())return captureHost;
@@ -50,12 +55,14 @@ if(single)app.whenReady().then(async()=>{
  app.setName(BRAND);
  const build=JSON.parse(await readFile(path.join(__dirname,'build-info.json'),'utf8')) as {sha:string;dirty:boolean;macUpdatesApproved?:boolean;updateTeamId?:string};
  app.setAboutPanelOptions({applicationName:BRAND,applicationVersion:app.getVersion(),version:`${build.sha.slice(0,12)}${build.dirty?' · working changes':''} · internal beta`,iconPath:path.join(app.getAppPath(),'assets/brand/exports/app-icon.png'),copyright:'Intera — internal beta. Human interpretation remains essential.'});
- Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera',click:()=>app.showAboutPanel()}]}]));
+ Menu.setApplicationMenu(Menu.buildFromTemplate(process.platform==='darwin'?[{role:'appMenu'},{role:'editMenu'},{role:'windowMenu'}]:[{role:'editMenu'},{role:'windowMenu'},{label:'Help',submenu:[{label:'About Intera AI',click:()=>app.showAboutPanel()}]}]));
  session.defaultSession.setPermissionRequestHandler((wc,p,cb)=>cb(p==='clipboard-sanitized-write'&&views.has(BrowserWindow.fromWebContents(wc)!)));session.defaultSession.setPermissionCheckHandler((wc,p)=>p==='clipboard-sanitized-write'&&!!wc&&views.has(BrowserWindow.fromWebContents(wc)!));
  const store=new Store();let credentialChange=false;let meetingOperation=false;
- const accounts=new AccountClient();
+ const accounts=new AccountClient();eyeContact=new EyeContact(view=>{coordinator.state.eyeContact=view;coordinator.emit();},frame=>{for(const w of views)if(!w.isDestroyed())w.webContents.send('gaze-frame',frame);});
  ipcMain.handle('billing',async(e,raw)=>{if(!trusted(e))return {ok:false,message:'Denied'};if(raw?.type==='sign-out')await coordinator.stop();return accounts.command(raw);});
  coordinator=new Coordinator({start:async(epoch,packetMs)=>{if(process.platform==='darwin'&&macPlaybackPath(process.getSystemVersion())==='unsupported')throw new Error('Playback capture requires macOS 13 or later.');const w=await makeCapture();if(coordinator.busy()&&coordinator.state.transcript.epoch===epoch)w.webContents.send('capture-command',{type:'start',epoch,packetMs});},stop:()=>{if(captureHost&&!captureHost.isDestroyed()){captureHost.destroy();captureHost=null;}}},state=>{const changes=Object.fromEntries(Object.entries(state).filter(([key,value])=>!previous||previous[key as keyof State]!==value));const patch={base:previous?.sequence??-1,sequence:state.sequence,changes};previous={...state};for(const w of views)if(!w.isDestroyed())w.webContents.send('state',patch);},store.preferences(),undefined,accounts);
+ if(process.platform==='darwin')coordinator.state.macCapture={compatibility:macCompatibility,nextCompatibility:macCompatibility};
+ coordinator.state.build={version:app.getVersion(),sha:build.sha,dirty:build.dirty};
  coordinator.glossary=store.glossary();coordinator.state.glossary=structuredClone(coordinator.glossary);coordinator.state.storageLoading=true;
  const meetingStore=new MeetingStore(path.join(app.getPath('userData'),'meetings'),{available:()=>store.secure(),encrypt:text=>safeStorage.encryptStringAsync(text),decrypt:async bytes=>(await safeStorage.decryptStringAsync(bytes)).result});
  const refreshMeetings=async()=>{try{coordinator.state.meetings=await meetingStore.list();coordinator.state.meetingStorageError=undefined;}catch{coordinator.state.meetingStorageError='Secure meeting library is unavailable or a saved file could not be read. No file was deleted.';}};
@@ -84,6 +91,13 @@ if(single)app.whenReady().then(async()=>{
     case 'open-meeting':{await coordinator.stop();const meeting=await meetingStore.get(c.id);coordinator.state.transcript=meeting.transcript;coordinator.state.names=meeting.names;coordinator.state.demo=meeting.demo;coordinator.state.hold=null;coordinator.state.savedMeeting=meeting.id;coordinator.state.meetingReview=true;coordinator.state.translationHealth=undefined;coordinator.state.message='Saved meeting — review only. Start a new meeting to listen.';break;}
     case 'delete-meeting':await meetingStore.delete(c.id);if(coordinator.state.savedMeeting===c.id)coordinator.state.savedMeeting=undefined;await refreshMeetings();break;
     case 'window-options':windowOptions={floating:c.floating,protection:c.protection};coordinator.state.windowOptions={...windowOptions};for(const w of views){w.setContentProtection(c.protection);if(w===compact)w.setAlwaysOnTop(c.floating);}store.saveWindowOptions(windowOptions);break;
+    case 'mac-capture-compatibility':if(process.platform!=='darwin')throw new Error('Mac-only capture setting.');if(coordinator.busy())throw new Error('Stop listening before changing next-launch capture mode.');store.saveCaptureCompatibility(c.enabled);coordinator.state.macCapture={compatibility:macCompatibility,nextCompatibility:c.enabled};break;
+    case 'gaze-check':await eyeContact.check();break;
+    case 'gaze-activate':eyeContact.activate();break;
+    case 'gaze-output':await eyeContact.output();break;
+    case 'gaze-start':await eyeContact.start(c.settings);break;
+    case 'gaze-configure':eyeContact.configure(c.settings);break;
+    case 'gaze-stop':eyeContact.stop();break;
     case 'check-updates':updates.check();break;
     case 'install-update':if(coordinator.state.transcript.groups.length&&!coordinator.state.savedMeeting)throw new Error('Save or clear your meeting before restarting.');updates.install();break;
     case 'finish':coordinator.finalize();break;
@@ -115,7 +129,7 @@ if(single)app.whenReady().then(async()=>{
  powerMonitor.on('suspend',()=>void coordinator.stop('paused'));powerMonitor.on('lock-screen',()=>void coordinator.stop('paused'));
  screen.on('display-removed',()=>{if(compact){const area=screen.getPrimaryDisplay().workArea;compact.setPosition(area.x+20,area.y+20);}});
  if(process.argv.includes('--test-isolated')&&process.argv.includes('--visual-fixture')){coordinator.state.transcript=visualFixture();coordinator.state.demo=true;coordinator.state.status='stopped';coordinator.state.captureHealth='Simulated';}
- windowView();startupRecord('reader-created');
+ windowView();startupRecord('reader-created');void eyeContact.check();
  // Keychain prompts and damaged saved meetings must not delay the first window.
  void (async()=>{try{const restored=await startupDeadline((async()=>{
    if(process.argv.includes('--test-isolated')&&process.argv.includes('--test-storage-hang'))await new Promise(()=>{});
@@ -130,6 +144,6 @@ if(single)app.whenReady().then(async()=>{
 }).catch(()=>{startupRecord(`failed-${startupPhase}`);dialog.showErrorBox('Intera could not start','The desktop startup failed. A non-secret startup-status.json report is in ~/Library/Application Support/Intera. Report that file and the app/macOS versions. Your saved data was not deleted.');app.quit();});
 app.on('activate',revealReader);
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
-app.on('before-quit',()=>{if(!quitting){quitting=true;updates?.dispose();coordinator?.dispose();}});
+app.on('before-quit',()=>{if(!quitting){quitting=true;eyeContact?.stop();updates?.dispose();coordinator?.dispose();}});
 
 

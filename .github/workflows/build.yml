@@ -29,22 +29,39 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Verify camera model boundary without camera or ML dependencies
+        run: python -m unittest discover -s camera -p test_worker.py
+      - name: Compile native camera extension and main-process bridge
+        if: runner.os == 'macOS'
+        run: npm run camera:native
+      - name: Retain native camera compile evidence
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Intera-camera-native-${{ matrix.arch }}
+          path: out/camera-native/
       - run: npm run make -- --arch=${{ matrix.arch }}
       - name: Exercise packaged Mac app and desktop UI
         if: runner.os == 'macOS'
         env:
-          INTERA_MAC_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+          INTERA_MAC_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
         run: npx playwright test
       - name: Attempt packaged Mac local-only playback diagnostic
         if: runner.os == 'macOS'
         continue-on-error: true
         env:
-          INTERA_CAPTURE_EXECUTABLE: out/Intera-darwin-${{ matrix.arch }}/Intera.app/Contents/MacOS/Intera
+          INTERA_CAPTURE_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
         run: npx tsx scripts/capture-diagnostic.ts --packaged
       # Playwright clears test-results at startup. Write integrity evidence after it.
       - name: Verify Mac app and installer integrity
         if: runner.os == 'macOS'
         run: node scripts/verify-mac.mjs out
+      - name: Attempt documented compatibility playback path
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        env:
+          INTERA_CAPTURE_EXECUTABLE: out/Intera AI-darwin-${{ matrix.arch }}/Intera AI.app/Contents/MacOS/Intera
+        run: npx tsx scripts/capture-diagnostic.ts --packaged --mac-playback-compat
       # One-off comparison with the actual artifact reported as damaged.
       - uses: actions/download-artifact@v4
         if: runner.os == 'macOS' && github.ref == 'refs/heads/codex/macos-reliability'

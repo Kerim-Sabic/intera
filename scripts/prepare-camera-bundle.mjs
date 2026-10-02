@@ -1,0 +1,34 @@
+import {mkdir,cp,writeFile,access} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import path from 'node:path';
+if(process.platform!=='darwin')throw new Error('Camera bundle preparation requires macOS.');
+const team=process.env.APPLE_TEAM_ID;
+if(!team||!/^[A-Z0-9]{10}$/.test(team))throw new Error('Supply the real Apple team ID through the protected build environment.');
+const identity=process.env.APPLE_SIGN_IDENTITY;
+if(!identity)throw new Error('A real Developer ID Application signing identity is required.');
+const python=process.env.INTERA_GAZE_PYTHON;
+if(!python||!path.isAbsolute(python))throw new Error('Select a dedicated reviewed Python environment.');
+const modelRoot=path.resolve('camera/upstream');
+await access(path.join(modelRoot,'approved-models.json'));
+// Validate real model hashes/licensing record before copying any model assets.
+execFileSync(python,['-c',`import sys;sys.path.insert(0,'camera');from worker import validate_models;from pathlib import Path;validate_models(Path(${JSON.stringify(modelRoot)}))`],{stdio:'inherit'});
+execFileSync(python,['-c',"import cv2,AVFoundation;assert cv2.__version__=='4.11.0','Use camera/requirements.txt; multiple OpenCV distributions can select the wrong camera'"],{stdio:'inherit'});
+execFileSync(process.execPath,['scripts/build-camera-native.mjs'],{stdio:'inherit'});
+const root=path.resolve('out/camera-bundle');
+await mkdir(root,{recursive:true});
+// Models/dependencies must be supplied by the developer; never installed at app launch.
+execFileSync(python,['-m','PyInstaller','--noconfirm','--onedir','--name','intera-camera','--distpath',path.join(root,'runtime-build'),'--workpath','out/camera-pyinstaller-work','--specpath','out','--paths','camera/upstream','--hidden-import','displayers.face_predictor','--hidden-import','model_managers.gaze_corrector_v1','--hidden-import','AVFoundation','--collect-all','mediapipe','--collect-all','tensorflow','--collect-all','cv2','camera/worker.py'],{stdio:'inherit'});
+await cp(path.join(root,'runtime-build','intera-camera'),path.join(root,'camera-runtime'),{recursive:true});
+await cp('camera/upstream',path.join(root,'camera-runtime','upstream'),{recursive:true,filter:source=>!source.includes('__pycache__')&&!source.endsWith('poetry.lock')&&!source.endsWith('pyproject.toml')});
+await cp('out/camera-native/intera-camera.node',path.join(root,'camera-runtime','intera-camera.node'));
+const extension=path.join(root,'com.intera.camera-extension.systemextension');
+await mkdir(path.join(extension,'Contents','MacOS'),{recursive:true});
+await cp('out/camera-native/InteraCamera',path.join(extension,'Contents','MacOS','InteraCamera'));
+const plist=`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.intera.camera-extension</string><key>CFBundleName</key><string>Intera Camera</string><key>CFBundleExecutable</key><string>InteraCamera</string><key>CFBundlePackageType</key><string>SYSX</string><key>CFBundleShortVersionString</key><string>0.2.0</string><key>CFBundleVersion</key><string>11</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>InteraTeamIdentifier</key><string>${team}</string><key>NSSystemExtensionUsageDescription</key><string>Intera Camera provides your locally processed webcam to the meeting app you choose.</string><key>CMIOExtension</key><dict><key>CMIOExtensionMachServiceName</key><string>${team}.com.intera.camera-extension</string></dict></dict></plist>`;
+await writeFile(path.join(extension,'Contents','Info.plist'),plist);
+const entitlement=(extra)=>`<?xml version="1.0"?><plist version="1.0"><dict>${extra}<key>com.apple.security.application-groups</key><array><string>${team}.com.intera.camera</string></array></dict></plist>`;
+await writeFile(path.join(root,'extension.entitlements'),entitlement('<key>com.apple.security.app-sandbox</key><true/>'));
+await writeFile(path.join(root,'host.entitlements'),entitlement('<key>com.apple.developer.system-extension.install</key><true/><key>com.apple.security.cs.allow-jit</key><true/><key>com.apple.security.device.audio-input</key><true/><key>com.apple.security.device.camera</key><true/>'));
+if(process.env.INTERA_CAMERA_PROVISION_PROFILE)await cp(process.env.INTERA_CAMERA_PROVISION_PROFILE,path.join(extension,'Contents','embedded.provisionprofile'));
+await writeFile(path.join(root,'preparation.json'),JSON.stringify({team,arch:process.arch,status:'PREPARED; not activated or Zoom verified',source:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()},null,2));
+console.log('Prepared camera bundle. Configure INTERA_CAMERA_BUNDLE for the signed/notarized desktop build; owner macOS activation remains required.');
