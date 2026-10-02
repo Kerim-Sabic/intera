@@ -2,7 +2,7 @@ import {initialTranslationHealth,receiveTranslationHealth,checkTranslationHealth
 import WebSocket from 'ws';
 import {CaptureStartupError} from '../shared/capture-diagnostic';
 import type {Admission,AdmissionBoundary} from '../shared/managed';
-import {defaults,draftVisibility,providerConfig,audioSchema,destination,preferencesSchema,type Preferences,type Glossary} from '../shared/config';
+import {defaults,draftVisibility,providerConfig,glossarySchema,audioSchema,destination,preferencesSchema,type Preferences,type Glossary} from '../shared/config';
 import {initialTranscript,beginEpoch,reduceTokens,responseSchema,changeGroup} from '../shared/transcript';
 import {demoEvents} from '../shared/demo';
 import type {State,Status} from '../shared/protocol';
@@ -20,6 +20,7 @@ export class Coordinator{
  async start(demo=false,local=false){
   if(this.busy())return;
   if(!demo&&!local&&(!this.boundary||this.state.preferences.funding==='personal')&&!this.key)throw new Error('Add your Soniox key in Settings first.');
+  if(!demo&&!local){const glossary=glossarySchema.safeParse(this.glossary);if(!glossary.success)throw new Error(glossary.error.issues[0]?.message??'Review session terminology before listening.');}
   const resume=this.state.status==='paused';
   if(!resume||this.state.pending?.timing==='pause'||!this.state.effective)this.state.effective=structuredClone(this.state.preferences.processing);
   if(!resume||this.state.pending?.timing==='pause')this.state.pending=null;
