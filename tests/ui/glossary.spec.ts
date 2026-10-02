@@ -17,5 +17,9 @@ test('saved generic glossary reloads into editor and failed duplicates do not re
   await expect(page.getByLabel('Directional translation mappings (source = target)')).toHaveValue('blood pressure = krvni pritisak\nkrvni pritisak = blood pressure');
   const result=await page.evaluate(()=>window.intera.command({type:'glossary',glossary:{terms:['duplicate','DUPLICATE'],translations:[]},save:true}));expect(result.ok).toBe(false);
   expect((await page.evaluate(()=>window.intera.snapshot())).glossary?.terms).toEqual(['blood pressure']);
+  await page.getByLabel('Recognition terms (one per line)').fill(Array.from({length:100},(_,i)=>`${i}${'x'.repeat(97)}`).join('\n'));
+  await page.getByRole('button',{name:'Apply glossary',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Glossary is too large');
+  expect((await page.evaluate(()=>window.intera.snapshot())).glossary?.terms).toEqual(['blood pressure']);
  }finally{await app.close();}
 });

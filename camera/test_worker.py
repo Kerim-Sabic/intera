@@ -3,9 +3,19 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from worker import validate_models, settings, physical_camera_index
+from types import SimpleNamespace
+from worker import validate_models, settings, physical_camera_index, correctable_geometry
 
 class ModelBoundary(unittest.TestCase):
+    def test_invalid_eye_geometry_does_not_enter_correction(self):
+        left = SimpleNamespace(top_left=(100, 100), original_size=(24, 32), center=(116, 112))
+        right = SimpleNamespace(top_left=(100, 200), original_size=(24, 32), center=(216, 112))
+        face = SimpleNamespace(left_eye=left, right_eye=right)
+        self.assertTrue(correctable_geometry(face, 640, 480))
+        for changes in ({'top_left': (-5, 100)}, {'top_left': (470, 100)}, {'original_size': (6, 32)}, {'original_size': (24, 8)}, {'center': (float('nan'), 112)}, {'center': right.center}):
+            invalid = SimpleNamespace(**{**vars(left), **changes})
+            self.assertFalse(correctable_geometry(SimpleNamespace(left_eye=invalid, right_eye=right), 640, 480))
+        self.assertFalse(correctable_geometry(SimpleNamespace(left_eye=None, right_eye=right), 640, 480))
     def test_virtual_camera_cannot_recursively_capture_itself(self):
         uid = 'D843482C-C61B-44A2-A317-E2869F0C5D91'
         self.assertEqual(physical_camera_index(['Z-physical', uid], 0), 1)

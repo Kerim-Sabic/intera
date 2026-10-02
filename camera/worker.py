@@ -3,6 +3,7 @@ import base64
 import contextlib
 import hashlib
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -67,6 +68,27 @@ def physical_camera_index(device_ids, requested):
         raise ValueError('No selected physical camera')
     return eligible[requested]
 
+def correctable_geometry(face, width, height, border=(3, 4)):
+    """Skip missing, clipped or tiny eye crops instead of killing the video stream."""
+    try:
+        eyes = (face.left_eye, face.right_eye)
+        for eye in eyes:
+            if eye is None:
+                return False
+            row, col = eye.top_left
+            rows, cols = eye.original_size
+            if any(type(value) is not int for value in (row, col, rows, cols)):
+                return False
+            if row < 0 or col < 0 or row + rows > height or col + cols > width:
+                return False
+            if rows <= 2 * border[0] or cols <= 2 * border[1]:
+                return False
+            if len(eye.center) != 2 or not all(math.isfinite(value) for value in eye.center):
+                return False
+        return math.dist(eyes[0].center, eyes[1].center) > 1
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        return False
+
 def main():
     cap = corrector = None
     try:
@@ -126,8 +148,14 @@ def main():
                     frame = cv2.resize(frame, (640, 480))
                     if current['enabled']:
                         faces = predictor.list_eye_data(frame, eye_config)
-                        if faces:
-                            frame = corrector.apply_correction(frame, faces[0], (640, 480))
+                        if faces and correctable_geometry(faces[0], 640, 480, corrector.pixel_cut):
+                            original = frame.copy()
+                            try:
+                                frame = corrector.apply_correction(frame, faces[0], (640, 480))
+                            except (ZeroDivisionError, FloatingPointError):
+                                # Degenerate calibration/landmarks: show the original frame.
+                                # Model/runtime failures still terminate through the outer handler.
+                                frame = original
                     ok, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
                     if not ok:
                         raise ValueError('Encoding failed')
