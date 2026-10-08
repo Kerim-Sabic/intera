@@ -2,10 +2,10 @@
   <img src="assets/brand/masters/wordmark.svg" alt="Intera AI" width="260">
 </p>
 
-<h1 align="center">Read the original. Deliver the meaning.</h1>
+<h1 align="center">Every word. Understood.</h1>
 
 <p align="center">
-  A desktop companion for human English ↔ Bosnian interpreters.<br>
+  A multilingual desktop companion for interpreters and meetings.<br>
   Follow meeting speech and its translation side by side. You remain the voice in the room.
 </p>
 
@@ -27,11 +27,19 @@
 
 > **Internal beta:** You can run the demo today. Funded live Soniox translation and physical Mac capture still need end-to-end verification. There is no signed public release. Intera AI assists a human interpreter; it is not an autonomous interpreter or a clinically validated product.
 
+## New in beta.14 source
+
+Choose from 60 meeting languages before starting, with recognition restricted to your selection. Translate both ways, translate into one target, or transcribe only. The new workspace puts meeting titles, New meeting and Save on the main screen. Save & start fresh preserves the previous conversation before clearing, and repeated saves update the same meeting.
+
+Translation is monitored separately in each direction. Pending output gets one bounded finalization request, reconnects retain unfinished drafts, and exports label provisional text. Saved meetings retain language settings, support title/language search and sorting, and remain accessible when an individual saved file is damaged. Source and translation follow their own text direction, including right-to-left scripts.
+
+The new logo was generated with the built-in image tool and is integrated into desktop and installer icons. See the [audit and verification report](docs/BETA14-WORKSPACE.md) for changes, evidence and outstanding Mac/live-provider checks. Existing installed apps do not automatically gain these source changes.
+
 ## Built for the interpreter's workflow
 
 When a speaker changes direction or returns later, an interpreter needs the original words, the translation, and the order in which they arrived. Intera AI puts them in one chronological reading view. It copies **computer playback**; it does not join, speak into, or control the meeting.
 
-- **Keep the source in sight.** Read English ↔ Bosnian source and translation together; see which words are still drafts and which have settled.
+- **Keep the source in sight.** Read your selected languages together; see which words are still drafts and which have settled.
 - **Find your place again.** Follow speaker turns, search, pin a snapshot, mark a passage interpreted, correct text, or jump back to live after scrolling.
 - **Fit your reading pace.** Choose Speed, Balanced, Accuracy-first, or Custom processing; set source and translation sizes, spacing, theme, and draft visibility independently.
 - **Stay out of the meeting's way.** Use a compact, always-on-top reader and explicit Start, Pause, and Stop controls. Save authorized meeting text locally, start a fresh meeting, or export the text when finished.
@@ -42,7 +50,7 @@ Intera AI captures all computer playback while listening, including notification
 
 [Published experimental beta.12 downloads](https://github.com/Kerim-Sabic/intera/releases/tag/v0.2.0-beta.12) are available for Apple Silicon and Intel. Read the release limitations before installing; these are ad-hoc signed, not Apple Developer ID signed or notarized.
 
-The current beta.13 source renames the app **Intera AI**, adds a direct camera toolbar shortcut, and shows the installed version plus camera readiness. **The public beta.12 does not provide working gaze correction.** The engine, reviewed model distribution and signed camera-enabled installer remain outstanding. See the [step-by-step Eye contact guide](docs/EYE-CONTACT-FOR-USERS.md). Source updates do not automatically replace an installed app.
+The current beta.14 source includes the beta.13 **Intera AI** naming, direct camera shortcut and camera readiness work. **The public beta.12 does not provide working gaze correction.** The engine, reviewed model distribution and signed camera-enabled installer remain outstanding. See the [step-by-step Eye contact guide](docs/EYE-CONTACT-FOR-USERS.md). Source updates do not automatically replace an installed app.
 
 ## Try the demo
 

@@ -13,3 +13,6 @@ Palette: ink #202D3C, ivory #F5F3ED, blue #6D91BB. Use ink/ivory monochrome for 
 Reproduce exports with `npm run brand:export`. The command writes genuine PNG-based multi-resolution ICO and ICNS containers plus SVG masters, transparent PNGs, favicon and a 1200×630 social image. System-font rendering can differ between hosts; masters remain editable. Whop upload dimensions are validated against its actual uploader separately. Generated assets do not establish merchant approval or app readiness.
 
 Generation briefs: each direction requested one original centered geometric symbol in ink/ivory/cool blue, legible at 16 px, with no generated typography, microphone, waveform, sparkle, robot, medical cross, Apple mark, existing-logo reference or product mockup. Direction 1 explored a two-form bridge; direction 2 opposing squared conversational brackets; direction 3 separated opposite arch ribbons. Original generation files remain unchanged.
+# beta.14 identity
+
+The authoritative new image is `intera-symbol-v2.png`. It was created with the built-in image generation tool; transparency is preserved. The app and installer exports are reproduced with `npm run brand:export`. Generated SVG files embed the raster artwork rather than tracing it. The full prompt and provenance are recorded in `docs/BETA14-WORKSPACE.md`.

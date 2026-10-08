@@ -33,7 +33,7 @@ test('direct payment onboarding works without Intera AI auth and keeps session-o
   await expect(page.getByRole('heading',{name:'Listen to meeting playback'})).toBeVisible();
   await page.getByRole('button',{name:'4. Ready',exact:true}).click();await expect(page.getByText('Soniox bills your API use directly.',{exact:false})).toBeVisible();await desktopScreenshot(app,page,{path:`${dir}/ready.png`});
   await page.getByRole('button',{name:'Close settings'}).click();await page.getByRole('button',{name:'Start',exact:true}).click();
-  await expect(page.getByText('Intera AI adds no usage fee and does not use your subscription allowance.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByText('Computer audio & billing',{exact:true}).click();await expect(page.getByText('Intera AI adds no usage fee and does not use your subscription allowance.',{exact:false})).toBeVisible();await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('button',{name:'Billed by Soniox',exact:true}).click();
   await page.getByRole('button',{name:'4. Connect & test'}).click();
   await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,theme:'dark'},timing:'next'});});

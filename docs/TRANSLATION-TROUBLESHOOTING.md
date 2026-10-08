@@ -1,18 +1,26 @@
 # Translation troubleshooting
 
+## Current beta.14 behavior
+
+Before a new meeting, **Start → Set up this meeting** asks for its languages and direction. Recognition requests are restricted to the selection. Explicitly out-of-selection output is filtered locally; unidentified tokens remain visibly unidentified. The supplied medical/insurance glossary is English/Bosnian, so review terminology when switching languages.
+
+Each translation direction has independent monitoring. After 20 seconds of pending output, Intera sends one bounded turn-finalization request without reconnecting or replaying audio. A connection error offers Reconnect and Check audio; reconnect preserves unfinished drafts in the earlier connection. After ten seconds of samples without recognized speech, a separate message offers an audio check. Text exports retain unfinished translations with labels.
+
+Use **New meeting → Save & start fresh** to keep one meeting before moving to another. Failed saves retain the reader. See [the beta.14 audit](BETA14-WORKSPACE.md) for exact validation and remaining physical Mac/live-provider limits.
+
 Report: a physical Mac user reports successful transcription but no translation in either reading view. This is user-reported capture evidence, not a measured full acceptance test. The root cause of zero translation in that user's connection is not confirmed.
 
 ## Quick check
 
 1. Stop listening (do not only Pause).
-2. Settings / Languages: select Automatic / English ↔ Bosnian for your normal bidirectional session. Enable Restrict recognition to English and Bosnian when those are the only languages spoken. One-way modes are diagnostic alternatives, not a replacement for bidirectional support. Save preferences.
+2. Start / Set up this meeting: choose the actual meeting languages and Conversation / translate both ways for bidirectional use. One-way and transcription-only are also available. The language restriction is always applied to your selection.
 3. Settings / Reading: enable Show live drafts and Show translation drafts. Release Hold reading and unpin the turn if needed.
-4. Start again with a short ordinary test sentence. Two-way mode translates only the selected language pair; one-way is useful to isolate language detection.
+4. Start again with a short ordinary test sentence in a selected language. Two-way mode translates only the selected pair.
 5. If still waiting, Settings / Session displays active direction and received source/translation token counts. Share those counts and direction, not keys or private conversation text.
 
 Translation tokens greater than zero prove provider output arrived, not translation accuracy. Zero means no translation was returned to this connection. Drafts are provisional and provider latency has no guaranteed maximum.
 
-## Changes in beta.5
+## Historical investigation: beta.5 through beta.6
 
 - Compact mode retains the most recent visible translation in the current connection when newer speech is untranslated, with an explicit earlier-output notice. Original speaker/turn attribution remains intact; uncertain translations are not silently paired.
 - A metadata-only warning appears after 20 seconds without translation when source speech has arrived after the last translation. It clears on translation arrival and does not warn during silence after translation caught up.
