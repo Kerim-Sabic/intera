@@ -22,6 +22,8 @@ Reviewed and changed on 2026-10-08. Baseline: beta.13 development commit `9161b5
 | Text exports omitted still-unfinished translations | Export retains drafts with explicit labels, human corrections, meeting title, languages and speaker names |
 | Large transcripts were filtered and repainted on audio-meter updates | Memoized visible text and turn rendering; Unicode-normalized search |
 | Reading assumed left-to-right scripts | Independent automatic text direction for source and translation; Arabic and other scripts preserved through save/restart/export |
+| Transcription could disappear when originals were hidden | Transcription-only always displays its text; a single-language option restricts recognition to one language |
+| Target-language speech appeared to wait for unnecessary translation | One-way meetings display that original text with an explicit already-in-target label |
 | Old visual identity and unclear screen hierarchy | Built-in image-generated logo, deterministic icon exports, refreshed light/dark workspace, smaller-window and zoom checks |
 
 ## Verification

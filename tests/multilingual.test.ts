@@ -6,6 +6,10 @@ import type {Token} from '../src/shared/transcript';
 const audio={sampleRate:48000,channels:2} as const;
 const token=(from:string,to?:string):Token=>({text:'Synthetic',is_final:true,language:to??from,source_language:to?from:undefined,translation_status:to?'translation':'original'});
 describe('selected meeting languages',()=>{
+ it('supports one selected language for transcription without translation',()=>{
+  const p=processingSchema.parse({...defaults.processing,mode:'none',languageA:'ar',languageB:'ar'});
+  const config=providerConfig(p,audio);expect(config.language_hints).toEqual(['ar']);expect(config.translation).toBeUndefined();expect(directionLabel(p)).toBe('Arabic · transcription');
+ });
  it('maps every distinct pair in the published 60-language catalog and restricts recognition',()=>{
   expect(languageCodes).toHaveLength(60);
   for(const languageA of languageCodes)for(const languageB of languageCodes){if(languageA===languageB)continue;

@@ -8,6 +8,6 @@ export const languageNames:Record<LanguageCode,string> = {
 export function languageName(code:string){return languageNames[code as LanguageCode]??(code==='und'||code==='unknown'?'Not identified yet':code);}
 type Direction={mode:string;languageA?:string;languageB?:string;targetLanguage?:string};
 export function translationTarget(p:Direction){return p.mode==='en'||p.mode==='bs'?p.mode:p.targetLanguage??'bs';}
-export function selectedLanguages(p:Direction):string[]{return p.mode==='en'||p.mode==='bs'?['en','bs']:p.mode==='one_way'?[p.languageA??'en',translationTarget(p)]:[p.languageA??'en',p.languageB??'bs'];}
+export function selectedLanguages(p:Direction):string[]{return [...new Set(p.mode==='en'||p.mode==='bs'?['en','bs']:p.mode==='one_way'?[p.languageA??'en',translationTarget(p)]:[p.languageA??'en',p.languageB??'bs'])];}
 export function directionLabel(p:Direction){return p.mode==='none'?`${selectedLanguages(p).map(languageName).join(' / ')} · transcription`:p.mode==='two_way'?`${languageName(p.languageA??'en')} ↔ ${languageName(p.languageB??'bs')}`:`${languageName(p.mode==='en'?'bs':p.mode==='bs'?'en':p.languageA??'en')} → ${languageName(translationTarget(p))}`;}
 export function expectsTranslation(language:string,p:Direction){return p.mode!=='none'&&selectedLanguages(p).includes(language)&&(p.mode==='two_way'||language!==translationTarget(p));}

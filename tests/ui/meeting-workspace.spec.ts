@@ -13,10 +13,23 @@ test('meeting language setup requires distinct selections and sends no audio bef
   await setup.getByLabel('Second meeting language').selectOption('ja');await expect(setup.getByRole('button',{name:'Start listening',exact:true})).toBeEnabled();
   await expect(setup.locator('.language-summary')).toHaveText('Arabic ↔ Japanese');
   await setup.getByRole('button',{name:'Swap meeting languages'}).click();await expect(setup.getByLabel('First meeting language')).toHaveValue('ja');
+  await setup.getByLabel('Meeting mode').selectOption('none');await setup.getByLabel('One language only').check();
+  await setup.getByLabel('First meeting language').selectOption('fr');await expect(setup.getByLabel('Second meeting language')).toHaveValue('fr');await expect(setup.getByLabel('Second meeting language')).toBeDisabled();
+  await expect(setup.getByRole('button',{name:'Start listening',exact:true})).toBeEnabled();await expect(setup.locator('.language-summary')).toHaveText('French · transcription');
   const state=await page.evaluate(()=>window.intera.snapshot());expect(state.packets).toBe(0);expect(state.status).toBe('idle');expect(state.networkHealth).toBe('Disconnected');
   await mkdir('test-results/workspace',{recursive:true});await desktopScreenshot(app,page,{path:'test-results/workspace/meeting-language-setup.png'});
   await setup.getByRole('button',{name:'Cancel',exact:true}).click();
   expect((await page.evaluate(()=>window.intera.snapshot())).preferences.processing.languageA).toBe('en');
+ }finally{await app.close();}
+});
+
+test('transcription and target-language speech remain readable with originals hidden',async()=>{
+ const app=await electron.launch({args:['.','--test-isolated','--visual-fixture'],env});
+ try{const page=await app.firstWindow();await expect(page.locator('.turn')).toHaveCount(12);
+  const source=await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,showSource:false,processing:{...s.preferences.processing,mode:'none',languageA:'en',languageB:'en'}},timing:'now'});return s.transcript.groups[0].source;});
+  await expect(page.locator('.source p').first()).toHaveText(source);await expect(page.locator('.translation')).toHaveCount(0);
+  await page.evaluate(async()=>{const s=await window.intera.snapshot();await window.intera.command({type:'preferences',preferences:{...s.preferences,processing:{...s.preferences.processing,mode:'one_way',languageA:'bs',targetLanguage:'en'}},timing:'now'});});
+  await expect(page.locator('.translation p').first()).toHaveText(source);await expect(page.locator('.translation .column-label').first()).toContainText('ALREADY IN TARGET');
  }finally{await app.close();}
 });
 
