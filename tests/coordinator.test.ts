@@ -54,3 +54,22 @@ it('bounds unconfirmed provider finalization and reports potentially incomplete 
  vi.useFakeTimers();const {c}=await liveMock();const done=c.stop();vi.advanceTimersByTime(15000);await done;
  expect(c.state.status).toBe('stopped');expect(c.state.message).toContain('Latest translation may be incomplete');c.dispose();
 });
+
+it('requests one turn completion per stalled wait, without reconnecting or dropping source',async()=>{
+ vi.useFakeTimers();const {c,ws,epoch,capture}=await liveMock();
+ ws.emit('message',Buffer.from(JSON.stringify({tokens:[{text:'Hello',is_final:true,language:'en',translation_status:'original'}]})));
+ for(let i=0;i<45;i++){c.packet(epoch,i,new Int16Array([0]).buffer);vi.advanceTimersByTime(1000);}
+ expect(ws.send.mock.calls.filter(([message])=>message==='{"type":"finalize"}')).toHaveLength(1);
+ expect(c.state.status).toBe('listening');expect(c.state.transcript.groups[0].source).toBe('Hello');expect(capture.start).toHaveBeenCalledTimes(1);c.dispose();
+});
+it('stops acquisition when creating or opening the provider socket throws',async()=>{
+ const capture={start:vi.fn(async()=>{}),stop:vi.fn()};
+ const c=new Coordinator(capture,()=>{},{...structuredClone(defaults),funding:'personal'},()=>{throw new Error('Synthetic connection error');});c.key='synthetic';
+ await c.start();c.format(c.state.transcript.epoch,{sampleRate:48000,channels:1});expect(c.state.status).toBe('error');expect(capture.stop).toHaveBeenCalled();c.dispose();
+ const live=await liveMock();live.ws.send.mockImplementation(()=>{throw new Error('Synthetic write failure');});
+ live.c.packet(live.epoch,0,new Int16Array([0]).buffer);expect(live.c.state.status).toBe('error');expect(live.capture.stop).toHaveBeenCalled();live.c.dispose();
+});
+it('a new meeting resets stale demo, languages, names and health state',async()=>{
+ const {c}=create();await c.start(true);c.state.meetingId='old';c.state.meetingTitle='Old meeting';c.state.names={old:'Speaker'};
+ await c.clear();expect(c.state).toMatchObject({status:'idle',demo:false,names:{},effective:null,pending:null});expect(c.state.meetingId).toBeUndefined();expect(c.state.translationHealth).toBeUndefined();c.dispose();
+});

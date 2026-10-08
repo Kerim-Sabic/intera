@@ -15,6 +15,8 @@ describe('encrypted local meeting persistence',()=>{
    const bytes=await readFile(path.join(dir,saved.id+'.bin'));expect(bytes.toString()).not.toContain('Synthetic meeting');expect(bytes.toString()).not.toContain(transcript.groups[0].source);
    await expect(store.delete('../outside')).rejects.toThrow('Invalid meeting ID');
    const second=await store.save({title:'Second',demo:false,names:{},transcript});const file=path.join(dir,second.id+'.bin');const tampered=await readFile(file);tampered[35]^=1;await writeFile(file,tampered);await expect(store.get(second.id)).rejects.toThrow();
+   expect(await store.list()).toMatchObject([{id:saved.id}]);expect(store.unreadableCount).toBe(1);
+   const updated=await store.save({title:'Updated',demo:true,names:{},transcript},saved.id);expect(updated.id).toBe(saved.id);expect((await store.list())[0].title).toBe('Updated');expect((await readdir(dir)).filter(f=>f.endsWith('.bin'))).toHaveLength(2);
    await store.delete(saved.id);expect(await readdir(dir)).toEqual([second.id+'.bin']);
   }finally{await clean(dir);}
  });

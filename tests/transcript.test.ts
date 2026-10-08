@@ -31,3 +31,14 @@ it('compact respects draft visibility and pinned snapshots',()=>{
  s=changeGroup(s,s.groups[1].id,'pin',false);
  expect(compactGroup(s.groups,true)?.source).toBe('First');
 });
+
+it('keeps unfinished source and translation visible across reconnects without finalizing them',()=>{
+ const draft=t('Unfinished source',false),translation=t('Nedovrseno',false,{translation_status:'translation',language:'bs',source_language:'en'});
+ let s=reduceTokens(initial(),1,1,[draft,translation]);s=beginEpoch(s,2);s=reduceTokens(s,2,1,[t('Next connection')]);
+ expect(displayed(s.groups[0],true)).toMatchObject({source:'Unfinished source',translation:'Nedovrseno'});
+ expect(s.groups[0].source).toBe('');expect(s.groups[0].translation).toBe('');expect(s.groups[1].epoch).toBe(2);
+});
+it('starts a readable new source turn after an endpoint, even for the same speaker',()=>{
+ let s=reduceTokens(initial(),1,1,[t('First sentence.'),t('<end>')]);s=reduceTokens(s,1,2,[t('Second sentence.')]);
+ expect(s.groups.map(g=>g.source)).toEqual(['First sentence.','Second sentence.']);
+});

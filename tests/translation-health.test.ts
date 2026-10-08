@@ -24,7 +24,7 @@ describe('bidirectional translation observability',()=>{
   health=checkTranslationHealth(health,20000);
   expect(health).toMatchObject({latestSourceLanguage:'hr',outsidePairTokens:1,translationTokens:0,stalled:true});
   health=receiveTranslationHealth(health,[source('bs'),translation('bs','en')],21000);
-  expect(health).toMatchObject({latestSourceLanguage:'bs',outsidePairTokens:1,bosnianToEnglishTokens:1,stalled:false});
+  expect(health).toMatchObject({latestSourceLanguage:'bs',outsidePairTokens:1,bosnianToEnglishTokens:1,stalled:true});
  });
  it('does not count missing source-language metadata as verified direction',()=>{
   const token={...translation('bs','en'),source_language:undefined};

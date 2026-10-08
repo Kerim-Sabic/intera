@@ -1,13 +1,15 @@
 import {Resvg} from '@resvg/resvg-js';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
 const root='assets/brand';
 await mkdir(`${root}/masters`,{recursive:true});await mkdir(`${root}/exports`,{recursive:true});
-const shape=(a='#202D3C',b=a)=>`<path fill="${a}" d="M28 10H20C12 10 8 15 8 23V41C8 49 12 54 20 54H28V44H21C19 44 18 43 18 41V34L28 26V10Z"/><path fill="${b}" d="M36 54H44C52 54 56 49 56 41V23C56 15 52 10 44 10H36V20H43C45 20 46 21 46 23V30L36 38V54Z"/>`;
+const raster=(await readFile(`${root}/intera-symbol-v2.png`)).toString('base64');
 const svg=(w,h,body)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
-const mark=svg(64,64,shape()),light=svg(64,64,shape('#F5F3ED'));
-const wordmark=svg(450,88,`<g transform="translate(4 12)">${shape()}</g><text x="87" y="64" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="60" font-weight="600" letter-spacing="-2">Intera AI</text>`);
-const icon=svg(1024,1024,`<rect x="32" y="32" width="960" height="960" rx="210" fill="#202D3C"/><g transform="translate(160 160) scale(11)">${shape('#F5F3ED','#91AED0')}</g>`);
-const social=svg(1200,630,`<rect width="1200" height="630" fill="#F5F3ED"/><g transform="translate(84 82) scale(2)">${shape()}</g><text x="236" y="176" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="88" font-weight="600" letter-spacing="-3">Intera AI</text><path d="M90 266H1110" stroke="#D9DDD9"/><text x="90" y="352" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="45">Two languages. Your voice.</text><text x="90" y="416" fill="#526375" font-family="Segoe UI, sans-serif" font-size="27">Live transcription and translation for human interpreters.</text><text x="90" y="552" fill="#526375" font-family="Segoe UI, sans-serif" font-size="22">English ↔ Bosanski</text>`);
+const image=(x,y,size)=>`<image x="${x}" y="${y}" width="${size}" height="${size}" href="data:image/png;base64,${raster}"/>`;
+const shape=()=>image(0,0,64);
+const mark=svg(1024,1024,image(0,0,1024)),light=mark;
+const wordmark=svg(500,88,`${image(-4,-8,100)}<text x="92" y="64" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="60" font-weight="600" letter-spacing="-2">Intera AI</text>`);
+const icon=svg(1024,1024,`<rect x="32" y="32" width="960" height="960" rx="210" fill="#F4F3FF"/>${image(0,0,1024)}`);
+const social=svg(1200,630,`<rect width="1200" height="630" fill="#F5F3ED"/><g transform="translate(84 82) scale(2)">${shape()}</g><text x="236" y="176" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="88" font-weight="600" letter-spacing="-3">Intera AI</text><path d="M90 266H1110" stroke="#D9DDD9"/><text x="90" y="352" fill="#202D3C" font-family="Segoe UI, sans-serif" font-size="45">Every word. Understood.</text><text x="90" y="416" fill="#526375" font-family="Segoe UI, sans-serif" font-size="27">Live transcription and translation for human interpreters.</text><text x="90" y="552" fill="#526375" font-family="Segoe UI, sans-serif" font-size="22">Your languages. Your conversation.</text>`);
 const masters={symbol:mark,'symbol-light':light,'symbol-color':svg(64,64,shape('#202D3C','#6D91BB')),wordmark,'wordmark-light':wordmark.replaceAll('#202D3C','#F5F3ED'),'app-icon':icon,social,'whop-cover':social.replaceAll('height="630"','height="675"').replace('0 0 1200 630','0 0 1200 675')};
 const png=(source,size)=>new Resvg(source,{fitTo:{mode:'width',value:size},font:{loadSystemFonts:true}}).render().asPng();
 for(const [name,source] of Object.entries(masters)){await writeFile(`${root}/masters/${name}.svg`,source);await writeFile(`${root}/exports/${name}.png`,png(source,name==='social'?1200:name==='whop-cover'?1280:name.startsWith('wordmark')?1440:1024));}

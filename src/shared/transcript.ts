@@ -6,12 +6,12 @@ export type Snapshot={source:string;translation:string;revision:number};
 export type Group={id:string;epoch:number;speaker:string;language:string;source:string;translation:string;sourceDraft:string;translationDraft:string;revision:number;boundary:boolean;unpaired:boolean;edit?:{source:string;translation:string};pinned?:Snapshot;interpreted?:Snapshot};
 export type Transcript={epoch:number;event:number;groups:Group[];serial:number;cursor:Record<string,string>};
 export const initialTranscript=():Transcript=>({epoch:0,event:0,groups:[],serial:0,cursor:{}});
-export function beginEpoch(s:Transcript,epoch:number):Transcript{return {...s,epoch,event:0,cursor:{},groups:s.groups.map(g=>({...g,sourceDraft:'',translationDraft:'',boundary:true}))};}
+export function beginEpoch(s:Transcript,epoch:number):Transcript{return {...s,epoch,event:0,cursor:{},groups:s.groups.map(g=>({...g,boundary:true}))};}
 // Source turns follow arrival order. Translation has no reliable sentence/turn IDs:
 // after a speaker returns, translations for that identity remain explicitly unpaired.
 export function reduceTokens(s:Transcript,epoch:number,event:number,tokens:Token[]):Transcript{
   if(epoch!==s.epoch||event<=s.event)return s;
-  const next:Transcript={...s,event,cursor:{...s.cursor},groups:s.groups.map(g=>g.sourceDraft||g.translationDraft?{...g,sourceDraft:'',translationDraft:''}:g)};
+  const next:Transcript={...s,event,cursor:{...s.cursor},groups:s.groups.map(g=>g.epoch===epoch&&(g.sourceDraft||g.translationDraft)?{...g,sourceDraft:'',translationDraft:''}:g)};
   for(const t of tokens){
     if(t.text==='<end>'||t.text==='<fin>'){
       if(t.is_final)next.groups=next.groups.map(g=>g.epoch===epoch?{...g,boundary:true}:g);
@@ -26,7 +26,7 @@ export function reduceTokens(s:Transcript,epoch:number,event:number,tokens:Token
       const id=candidates.length===1?candidates[0].id:next.cursor[`translation:${key}`];
       i=next.groups.findIndex(g=>g.id===id);
     }else{
-      i=next.groups.findIndex(g=>g.id===next.cursor[key]&&g.id===next.cursor['@source']);
+      i=next.groups.findIndex(g=>g.id===next.cursor[key]&&g.id===next.cursor['@source']&&!g.boundary);
     }
     if(i<0){
       const id=`${epoch}:${++next.serial}`;next.cursor[translated?`translation:${key}`:key]=id;
@@ -37,6 +37,7 @@ export function reduceTokens(s:Transcript,epoch:number,event:number,tokens:Token
     const field=translated?(t.is_final?'translation':'translationDraft'):(t.is_final?'source':'sourceDraft');
     g[field]+=t.text;g.revision++;g.unpaired=!g.source;g.boundary=false;next.groups[i]=g;
   }
+  next.groups=next.groups.filter(g=>g.source||g.translation||g.sourceDraft||g.translationDraft||g.edit||g.pinned||g.interpreted);
   return next;
 }
 export type DraftVisibility=boolean|{source:boolean;translation:boolean};
